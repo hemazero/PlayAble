@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>تحدي البرق | Hyper Reflex</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #0b0813;
+            --primary-neon: #00f3ff;
+            --secondary-neon: #ff0055;
+            --player-neon: #a020f0;
+            --glass-bg: rgba(255, 255, 255, 0.07);
+            --glass-border: rgba(255, 255, 255, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            position: fixed;
+            touch-action: none;
+        }
+
+        /* Responsive Portrait Viewport */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            background: radial-gradient(circle at center, #1a153a 0%, #080511 100%);
+            box-shadow: 0 0 50px rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            z-index: 1;
+        }
+
+        /* Modern Glassmorphic UI Layers */
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 24px;
+            padding-top: calc(24px + env(safe-area-inset-top));
+            padding-bottom: calc(24px + env(safe-area-inset-bottom));
+        }
+
+        /* Hud Elements */
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .hud.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .score-box {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            padding: 8px 20px;
+            border-radius: 16px;
+            color: #fff;
+            font-weight: 700;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+
+        .score-val {
+            color: var(--primary-neon);
+            font-size: 1.6rem;
+            font-weight: 900;
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.5);
+        }
+
+        /* Screen States Overlay */
+        .screen-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(8, 5, 17, 0.75);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 20;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 30px;
+            pointer-events: auto;
+            transition: opacity 0.3s ease;
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none !important;
+        }
+
+        /* Glass Cards */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 28px;
+            width: 100%;
+            max-width: 380px;
+            padding: 35px 25px;
+            text-align: center;
+            color: white;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+            transform: scale(0.9);
+            transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        .screen-overlay:not(.hidden) .glass-card {
+            transform: scale(1);
+        }
+
+        /* Typography Styles */
+        h1 {
+            font-size: 2.2rem;
+            font-weight: 900;
+            margin-bottom: 10px;
+            background: linear-gradient(45deg, #fff, var(--primary-neon));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 5px 15px rgba(0,243,255,0.2);
+        }
+
+        p.instructions {
+            font-size: 1.05rem;
+            color: #b0aebf;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        /* Start Prompt Pulse Animation */
+        .tap-prompt {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: var(--primary-neon);
+            animation: pulse 1.5s infinite alternate;
+            margin-top: 20px;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.96); opacity: 0.6; text-shadow: 0 0 5px rgba(0,243,255,0.3); }
+            100% { transform: scale(1.04); opacity: 1; text-shadow: 0 0 20px rgba(0,243,255,0.8); }
+        }
+
+        /* Viral CTA Specific Styling */
+        .viral-card {
+            border: 2px solid rgba(0, 243, 255, 0.3);
+            background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(0, 243, 255, 0.05) 100%);
+            animation: floatCard 4s ease-in-out infinite;
+        }
+
+        @keyframes floatCard {
+            0%, 100% { transform: translateY(0) scale(1); }
+            50% { transform: translateY(-8px) scale(1.01); }
+        }
+
+        .cta-text {
+            font-size: 1.15rem;
+            font-weight: 700;
+            line-height: 1.7;
+            color: #fff;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 16px;
+            border-right: 4px solid var(--primary-neon);
+        }
+
+        .action-btn {
+            background: linear-gradient(90deg, var(--secondary-neon), #ff00a0);
+            color: white;
+            border: none;
+            padding: 14px 35px;
+            font-size: 1.2rem;
+            font-weight: 900;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(255, 0, 85, 0.4);
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            width: 100%;
+            justify-content: center;
+            text-decoration: none;
+            margin-top: 10px;
+        }
+
+        .action-btn:active {
+            transform: scale(0.95);
+            box-shadow: 0 4px 10px rgba(255, 0, 85, 0.2);
+        }
+
+        .btn-icon {
+            font-size: 1.4rem;
+            animation: heartbeat 1.2s infinite;
+        }
+
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.25); }
+        }
+
+        .stats-row {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            gap: 15px;
+        }
+
+        .stat-item {
+            flex: 1;
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 14px;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: #8e8baf;
+            display: block;
+        }
+
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 900;
+            color: #fff;
+        }
+
+        .stat-value.highlight {
+            color: var(--primary-neon);
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="ui-layer">
+        <div class="hud" id="hud">
+            <div class="score-box">
+                <span>النقاط:</span>
+                <span class="score-val" id="live-score">0</span>
+            </div>
+            <div class="score-box">
+                <span>الرقم القياسي:</span>
+                <span class="score-val" id="live-high">0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="screen-overlay" id="start-screen">
+        <div class="glass-card">
+            <h1>تحدي البرق الخاطف ⚡</h1>
+            <p class="instructions">
+                اضغط لتغيير المسار بسرعة خيالية! <br>
+                اجمع الجواهر المشعة <span style="color:var(--primary-neon)">💎</span> وتفادى القنابل المتفجرة <span style="color:var(--secondary-neon)">💥</span>.
+                الصعوبة تتضاعف كل ثانية!
+            </p>
+            <div class="tap-prompt">إلمس الشاشة للبدء فوراً 🎮</div>
+        </div>
+    </div>
+
+    <div class="screen-overlay hidden" id="gameover-screen">
+        <div class="glass-card viral-card">
+            <h1 style="background: linear-gradient(45deg, #ff0055, #ff5500); -webkit-background-clip: text;">انتهت اللعبة! 💥</h1>
+            
+            <div class="stats-row">
+                <div class="stat-item">
+                    <span class="stat-label">النتيجة الحالية</span>
+                    <span class="stat-value highlight" id="final-score">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">أفضل نتيجة</span>
+                    <span class="stat-value" id="final-high">0</span>
+                </div>
+            </div>
+
+            <div class="cta-text">
+              إكتب لنا في التعليقات رقمك القياسي 😉 </div>
+
+            <button class="action-btn" id="btn-replay">
+                <span class="btn-icon">❤</span>
+                <span>العب مجدداً</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Configuration & State Systems
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    const startScreen = document.getElementById('start-screen');
+    const gameoverScreen = document.getElementById('gameover-screen');
+    const hud = document.getElementById('hud');
+    const liveScoreText = document.getElementById('live-score');
+    const liveHighText = document.getElementById('live-high');
+    const finalScoreText = document.getElementById('final-score');
+    const finalHighText = document.getElementById('final-high');
+    const btnReplay = document.getElementById('btn-replay');
+
+    const STATES = { START: 0, PLAYING: 1, GAMEOVER: 2 };
+    let gameState = STATES.START;
+
+    let score = 0;
+    let highScore = localStorage.getItem('hyper_high') || 0;
+    liveHighText.innerText = highScore;
+
+    // Viewport Optimization Matrix
+    let dpr = window.devicePixelRatio || 1;
+    let viewW = 0;
+    let viewH = 0;
+    
+    // Dynamic Speed & Progression Scaling
+    let baseSpeed = 0;
+    let spawnRate = 0;
+    let lastSpawnTime = 0;
+    
+    // Juiciness Variables
+    let screenShake = 0;
+    let particles = [];
+
+    // Entities Logic
+    let player = {
+        lane: 0, // 0 = Left, 1 = Right
+        targetX: 0,
+        currentX: 0,
+        y: 0,
+        radius: 0,
+        color: '#a020f0'
+    };
+    
+    let obstacles = [];
+
+    function resizeCanvas() {
+        const container = canvas.parentElement;
+        viewW = container.clientWidth;
+        viewH = container.clientHeight;
+        
+        canvas.width = viewW * dpr;
+        canvas.height = viewH * dpr;
+        ctx.scale(dpr, dpr);
+        
+        // Recalculate positional units based on dynamic layout
+        player.radius = viewW * 0.06;
+        player.y = viewH * 0.82;
+        updatePlayerLaneX(true);
+    }
+
+    function updatePlayerLaneX(instant = false) {
+        const laneWidth = viewW / 2;
+        // Place player perfectly centered in left or right half
+        player.targetX = player.lane === 0 ? laneWidth * 0.5 : laneWidth * 1.5;
+        if (instant) player.currentX = player.targetX;
+    }
+
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // Interaction Matrix Handles Direct Input Transitions
+    window.addEventListener('touchstart', handleInput, { passive: false });
+    window.addEventListener('mousedown', handleInput);
+
+    function handleInput(e) {
+        if (e.type === 'touchstart') e.preventDefault(); // Eliminate mobile click delays
+        
+        if (gameState === STATES.START) {
+            startGame();
+        } else if (gameState === STATES.PLAYING) {
+            // Flip Lane Instantly
+            player.lane = player.lane === 0 ? 1 : 0;
+            updatePlayerLaneX();
+            // Subtle pop squeeze physics visual trigger on shift
+            player.radius = viewW * 0.045; 
+        }
+    }
+
+    btnReplay.addEventListener('click', (e) => {
+        e.stopPropagation(); // Avoid instant trigger cycle
+        startGame();
+    });
+
+    function startGame() {
+        score = 0;
+        baseSpeed = viewH * 0.009; // Scaling velocity metric dynamically
+        spawnRate = 650; // Initial fast spawn interval in milliseconds
+        obstacles = [];
+        particles = [];
+        screenShake = 0;
+        player.lane = 0;
+        updatePlayerLaneX(true);
+        
+        liveScoreText.innerText = score;
+        
+        startScreen.classList.add('hidden');
+        gameoverScreen.classList.add('hidden');
+        hud.classList.add('active');
+        
+        gameState = STATES.PLAYING;
+        lastSpawnTime = performance.now();
+    }
+
+    function triggerGameOver() {
+        gameState = STATES.GAMEOVER;
+        screenShake = 24; // Intense failure feedback matrix
+        
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem('hyper_high', highScore);
+            liveHighText.innerText = highScore;
+        }
+        
+        finalScoreText.innerText = score;
+        finalHighText.innerText = highScore;
+        
+        // Giant spatial explosion visual payload
+        createExplosion(player.currentX, player.y, '#ff0055', 40);
+        createExplosion(player.currentX, player.y, '#ffffff', 20);
+
+        setTimeout(() => {
+            hud.classList.remove('active');
+            gameoverScreen.classList.remove('hidden');
+        }, 400);
+    }
+
+    // Particle Factories
+    function createParticle(x, y, color) {
+        particles.push({
+            x: x,
+            y: y,
+            vx: (Math.random() - 0.5) * 12,
+            vy: (Math.random() - 0.5) * 12,
+            radius: Math.random() * 5 + 2,
+            alpha: 1,
+            decay: Math.random() * 0.03 + 0.02,
+            color: color
+        });
+    }
+
+    function createExplosion(x, y, color, count = 15) {
+        for(let i=0; i<count; i++) createParticle(x, y, color);
+    }
+
+    // Standard high refresh loop logic (up to 120fps fluid capability)
+    function gameLoop(currentTime) {
+        update(currentTime);
+        render();
+        requestAnimationFrame(gameLoop);
+    }
+
+    function update(currentTime) {
+        // Recover radius physics loop smooth bounce
+        player.radius += (viewW * 0.06 - player.radius) * 0.2;
+        
+        if (gameState !== STATES.PLAYING) {
+            // Processing dynamic particles even on screens for lively atmosphere
+            updateParticles();
+            return;
+        }
+
+        // Fast responsive player interpolation formula
+        player.currentX += (player.targetX - player.currentX) * 0.32;
+
+        // Extreme Progression Engine Scaling Loops
+        // Speed scaling ramps aggressively based on your performance score metric
+        let currentSpeed = baseSpeed + (score * 0.12);
+        // Maximum velocity constraint
+        if(currentSpeed > viewH * 0.022) currentSpeed = viewH * 0.022;
+        
+        let dynamicSpawnRate = spawnRate - (score * 6);
+        if(dynamicSpawnRate < 280) dynamicSpawnRate = 280;
+
+        // Generation Spawning Framework
+        if (currentTime - lastSpawnTime > dynamicSpawnRate) {
+            spawnObstacle();
+            lastSpawnTime = currentTime;
+        }
+
+        // Entity Processing
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+            let obs = obstacles[i];
+            obs.y += currentSpeed;
+
+            // Rotation loop calculation
+            obs.rotation += obs.rotSpeed;
+
+            // Highly accurate standard geometry bounding radius collision matrices
+            let dx = obs.x - player.currentX;
+            let dy = obs.y - player.y;
+            let distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < obs.radius + player.radius * 0.85) {
+                if (obs.type === 'good') {
+                    // Score point feedback
+                    score++;
+                    liveScoreText.innerText = score;
+                    createExplosion(obs.x, obs.y, '#00f3ff', 12);
+                    
+                    // Tiny screen jolt on positive collections
+                    screenShake = 4;
+                    obstacles.splice(i, 1);
+                } else {
+                    // Fatality Contact
+                    triggerGameOver();
+                    obstacles.splice(i, 1);
+                }
+                continue;
+            }
+
+            // Boundary removal safely
+            if (obs.y - obs.radius > viewH) {
+                obstacles.splice(i, 1);
+            }
+        }
+
+        updateParticles();
+
+        // Screen shake decay profile
+        if (screenShake > 0) screenShake *= 0.9;
+    }
+
+    function updateParticles() {
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.vy += 0.2; // Gravity pull simulating physics drops
+            p.alpha -= p.decay;
+            if (p.alpha <= 0) particles.splice(i, 1);
+        }
+    }
+
+    function spawnObstacle() {
+        const targetLane = Math.random() < 0.5 ? 0 : 1;
+        const laneWidth = viewW / 2;
+        const targetX = targetLane === 0 ? laneWidth * 0.5 : laneWidth * 1.5;
+        
+        // Distribution weighting profiles for items (65% bad bombs, 35% collectable gems)
+        const type = Math.random() < 0.35 ? 'good' : 'bad';
+        
+        obstacles.push({
+            x: targetX,
+            y: -40,
+            radius: viewW * 0.055,
+            type: type,
+            rotation: Math.random() * Math.PI,
+            rotSpeed: (Math.random() - 0.5) * 0.1
+        });
+    }
+
+    // Graphical Pipeline Render Configurations
+    function render() {
+        ctx.save();
+        
+        // Process Screen Shakes directly onto main scene transformations Matrix
+        if (screenShake > 0.5) {
+            let dx = (Math.random() - 0.5) * screenShake;
+            let dy = (Math.random() - 0.5) * screenShake;
+            ctx.translate(dx, dy);
+        }
+
+        ctx.clearRect(0, 0, viewW, viewH);
+
+        // Draw Lane Separation Lines
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+        ctx.lineWidth = 4;
+        ctx.setLineDash([20, 15]);
+        ctx.beginPath();
+        ctx.moveTo(viewW / 2, 0);
+        ctx.lineTo(viewW / 2, viewH);
+        ctx.stroke();
+        ctx.setLineDash([]); // Reset line styles
+
+        // Render Active Obstacles Collection Objects
+        obstacles.forEach(obs => {
+            ctx.save();
+            ctx.translate(obs.x, obs.y);
+            ctx.rotate(obs.rotation);
+
+            if (obs.type === 'good') {
+                // Collectable Glowing Cyan Gem Architecture Matrix
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#00f3ff';
+                ctx.fillStyle = '#00f3ff';
+                
+                // Drawing Diamond Poly Architecture shapes
+                ctx.beginPath();
+                ctx.moveTo(0, -obs.radius);
+                ctx.lineTo(obs.radius, 0);
+                ctx.lineTo(0, obs.radius);
+                ctx.lineTo(-obs.radius, 0);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Highlights
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.moveTo(0, -obs.radius * 0.5);
+                ctx.lineTo(obs.radius * 0.5, 0);
+                ctx.lineTo(0, obs.radius * 0.5);
+                ctx.lineTo(-obs.radius * 0.5, 0);
+                ctx.closePath();
+                ctx.fill();
+            } else {
+                // Spike Bomb Render Stack Logic
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#ff0055';
+                ctx.fillStyle = '#ff0055';
+                
+                ctx.beginPath();
+                ctx.arc(0, 0, obs.radius, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Draw technical hazard core spikes indicators
+                ctx.strokeStyle = '#ff0055';
+                ctx.lineWidth = 4;
+                for (let j = 0; j < 8; j++) {
+                    ctx.rotate(Math.PI / 4);
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(0, -obs.radius * 1.3);
+                    ctx.stroke();
+                }
+                
+                // Danger Inner Core Element Indicator
+                ctx.fillStyle = '#110712';
+                ctx.beginPath();
+                ctx.arc(0, 0, obs.radius * 0.6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+        });
+
+        // Render Interactive Particle Layers Stack Array
+        particles.forEach(p => {
+            ctx.save();
+            ctx.globalAlpha = p.alpha;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = p.color;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        });
+
+        // Render Controlling Player Avatar Representation Object
+        if (gameState === STATES.PLAYING || gameState === STATES.START) {
+            ctx.save();
+            ctx.translate(player.currentX, player.y);
+            
+            // Neon Glow Shader Settings Simulation via Canvas Shadow APIS
+            ctx.shadowBlur = 25;
+            ctx.shadowColor = '#a020f0';
+            
+            // Multi-layered visual rendering for crisp high quality modern finish
+            let gradient = ctx.createRadialGradient(0, 0, player.radius * 0.2, 0, 0, player.radius);
+            gradient.addColorStop(0, '#ffffff');
+            gradient.addColorStop(0.3, '#d66fff');
+            gradient.addColorStop(1, '#a020f0');
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(0, 0, player.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Inner Core Flare Shield Accentuation
+            ctx.shadowBlur = 0;
+            ctx.strokeStyle = 'rgba(255,255,255,0.8)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, 0, player.radius * 0.6, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        ctx.restore();
+    }
+
+    // Initialize Global Audio/Visual Sync Loop Stack Context
+    requestAnimationFrame(gameLoop);
+</script>
+
+</body>
+</html>
