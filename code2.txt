@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>تحدي ستروب 3D - واجهة مرتبة 🌐</title>
+    <title>تحدي ستروب 3D</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@800;900&family=Fredoka:wght@600;700&display=swap');
 
@@ -577,7 +577,7 @@
         }
 
         function endGame() {
-            isPlaying = false;
+            isPlaying = false;ب
             playFailSound(); 
             
             // إظهار الرقم بخلفية سوداء لتباين مثالي وممتاز ومريح للعين
