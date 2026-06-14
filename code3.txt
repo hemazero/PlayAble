@@ -1,0 +1,1382 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Level Devil - Fixed World Edition</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: none; 
+        }
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0b0b10;
+            font-family: monospace;
+        }
+
+        /* واجهة القائمة الرئيسية */
+        #main-menu {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #151522 0%, #07070a 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 20px;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        #menu-title {
+            color: #ff2a5f;
+            font-size: 2.2rem;
+            font-weight: bold;
+            text-align: center;
+            margin: 20px 0 10px 0;
+            text-shadow: 0 0 15px rgba(255, 42, 95, 0.6);
+        }
+        #menu-subtitle {
+            color: #8888aa;
+            font-size: 0.9rem;
+            margin-bottom: 25px;
+        }
+        .worlds-container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .world-block {
+            background: rgba(255, 255, 255, 0.03);
+            border: 2px solid #222230;
+            border-radius: 12px;
+            padding: 12px;
+        }
+        .world-title {
+            color: #00f0ff;
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 8px;
+            border-bottom: 1px solid #222230;
+            padding-bottom: 4px;
+        }
+        .stages-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 8px;
+        }
+        .stage-btn {
+            aspect-ratio: 1;
+            background: #1e1e28;
+            border: 2px solid #3c3c50;
+            border-radius: 8px;
+            color: #fff;
+            font-weight: bold;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #0d0d14;
+        }
+        .stage-btn.locked {
+            background: #111116;
+            border-color: #22222c;
+            color: #555566;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        .stage-btn:not(.locked):active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #0d0d14;
+        }
+        #btn-reset-progress {
+            margin-top: 25px;
+            background: #33111c;
+            border: 1px solid #77112c;
+            color: #ff5577;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        /* واجهة اللعب الأساسية */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            background: #08080c;
+        }
+        #canvas-wrapper {
+            position: relative;
+            width: 100%;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            background-color: #101014;
+        }
+
+        /* تأثير الحركة لنص البداية (Vhooo) */
+        @keyframes vhoooAnim {
+            0% { transform: scale(0.2); opacity: 0; filter: blur(10px); }
+            20% { transform: scale(1.15); opacity: 1; filter: blur(0px); }
+            35% { transform: scale(1); opacity: 1; }
+            80% { transform: scale(1); opacity: 1; filter: blur(0px); }
+            100% { transform: scale(1.6); opacity: 0; filter: blur(8px); }
+        }
+
+        #stage-intro-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            z-index: 40;
+        }
+        .intro-text {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #00f0ff;
+            text-shadow: 0 0 20px rgba(0, 240, 255, 0.8);
+            animation: vhoooAnim 1.2s ease-out forwards;
+        }
+
+        /* لافتة الفوز والانتقال */
+        #clear-banner {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 18, 0.9);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+            backdrop-filter: blur(4px);
+            padding: 20px;
+        }
+        #clear-title {
+            color: #33cc66;
+            font-size: 2.2rem;
+            font-weight: bold;
+            text-shadow: 0 0 15px rgba(51, 204, 102, 0.6);
+            text-align: center;
+            line-height: 1.6;
+        }
+
+        #hud {
+            position: absolute;
+            top: 15px;
+            left: 0;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            color: #fff;
+            font-size: 1.1rem;
+            font-weight: bold;
+            pointer-events: none;
+            text-shadow: 2px 2px 2px #000;
+            z-index: 10;
+        }
+        .hud-interactive {
+            pointer-events: auto;
+        }
+        #btn-menu-back {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 5px 12px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        /* لوحة التحكم للهاتف */
+        #controls {
+            width: 100%;
+            height: 120px;
+            background: #111116;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 35px;
+            border-top: 4px solid #1a1a24;
+            z-index: 10;
+        }
+        .btn-group {
+            display: flex;
+            gap: 20px;
+        }
+        .btn {
+            width: 75px;
+            height: 75px;
+            background: #252530;
+            border: 3px solid #444455;
+            border-radius: 16px;
+            color: white;
+            font-size: 1.8rem;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 5px 0 #0f0f15;
+            cursor: pointer;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        .btn:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #0f0f15;
+        }
+        #btn-jump {
+            width: 85px;
+            height: 85px;
+            border-radius: 50%;
+            background: #ff2a5f;
+            border-color: #ff5e87;
+            box-shadow: 0 5px 0 #800020;
+        }
+        #btn-jump:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #800020;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- القائمة الرئيسية -->
+    <div id="main-menu">
+        <div id="menu-title">LEVEL DEVIL</div>
+        <div id="menu-subtitle">تخطى الأفخاخ المستفزة وفز بالـ 25 مرحلة</div>
+        
+        <div class="worlds-container" id="worlds-list"></div>
+
+        <button id="btn-reset-progress" onclick="resetProgress()">تصفير وتهيئة التقدم الحالي</button>
+    </div>
+
+    <!-- واجهة اللعب -->
+    <div id="game-container">
+        <div id="canvas-wrapper">
+            <!-- لافتة اسم المرحلة الدائرية المفتوحة (Vhooo) -->
+            <div id="stage-intro-overlay"></div>
+
+            <!-- لافتة الانتقال عند الفوز -->
+            <div id="clear-banner">
+                <div id="clear-title">تم التطهير!</div>
+            </div>
+
+            <div id="hud">
+                <button id="btn-menu-back" class="hud-interactive" onclick="returnToMenu()">القائمة ☰</button>
+                <div id="world-txt">المرحلة: 1</div>
+                <div id="death-txt" style="color: #ff2a5f;">الوفيات: 0</div>
+            </div>
+            <canvas id="gameCanvas"></canvas>
+        </div>
+
+        <div id="controls">
+            <div class="btn-group">
+                <div class="btn" id="btn-left">◀</div>
+                <div class="btn" id="btn-right">▶</div>
+            </div>
+            <div class="btn" id="btn-jump">▲</div>
+        </div>
+    </div>
+
+    <script>
+        // --- مشغل نظام الصوت التفاعلي المدمج ---
+        let audioCtx = null;
+        function initAudio() {
+            try {
+                if (!audioCtx) {
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (audioCtx.state === 'suspended') {
+                    audioCtx.resume();
+                }
+            } catch (e) {}
+        }
+
+        function playSound(type) {
+            try {
+                initAudio();
+                if (!audioCtx) return;
+
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+
+                if (type === 'jump') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(160, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.1);
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+                } else if (type === 'die') {
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(250, audioCtx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(50, audioCtx.currentTime + 0.3);
+                    gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+                } else if (type === 'win') {
+                    const now = audioCtx.currentTime;
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(261.6, now);
+                    osc.frequency.setValueAtTime(329.6, now + 0.08);
+                    osc.frequency.setValueAtTime(392.0, now + 0.16);
+                    osc.frequency.setValueAtTime(523.2, now + 0.24);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+                    osc.start(); osc.stop(now + 0.4);
+                } else if (type === 'troll') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(80, audioCtx.currentTime + 0.15);
+                    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.15);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.15);
+                }
+            } catch (e) {}
+        }
+
+        // --- الثوابت والفيزياء ---
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const VIEW_WIDTH = 800;
+        const VIEW_HEIGHT = 450;
+        canvas.width = VIEW_WIDTH;
+        canvas.height = VIEW_HEIGHT;
+
+        let keys = { left: false, right: false, jump: false };
+        let stage = 1; 
+        let maxUnlockedStage = 1; 
+        let deaths = 0;
+        let screenShake = 0;
+        let gameActive = false;
+        let portalRotation = 0;
+        let eyeAnimTimer = 0; 
+
+        const player = {
+            x: 60,
+            y: 200,
+            width: 24,
+            height: 24,
+            vx: 0,
+            vy: 0,
+            speed: 4.2,
+            gravity: 0.5,
+            jumpForce: -9.5,
+            grounded: false,
+            faceRight: true,
+            trail: []
+        };
+
+        let platforms = [];
+        let spikes = [];
+        let particles = [];
+        let portal = { x: 720, y: 310, w: 35, h: 50 };
+        let traps = [];
+
+        const worlds = [
+            { name: "الغابة المتربصة", bg: "#141f14", platformColor: "#2d4a2d", platTop: "#4f7a4f", spikeColor: "#d93838" },
+            { name: "كهف الحمم", bg: "#1f1414", platformColor: "#422421", platTop: "#ff6600", spikeColor: "#ff3300" },
+            { name: "الشبكة السيبرانية", bg: "#0d0d14", platformColor: "#17172b", platTop: "#00f0ff", spikeColor: "#ff007f" },
+            { name: "مملكة الجليد", bg: "#141c24", platformColor: "#283d52", platTop: "#a3d8f4", spikeColor: "#00ffff" },
+            { name: "الفراغ المظلم", bg: "#160f24", platformColor: "#2d1b40", platTop: "#a040ff", spikeColor: "#ffff00" }
+        ];
+
+        function getCurrentWorld() {
+            let index = Math.floor((stage - 1) / 5);
+            return worlds[Math.min(index, 4)];
+        }
+
+        function loadSavedProgress() {
+            const saved = localStorage.getItem('levelDevil_maxStage');
+            if (saved) {
+                maxUnlockedStage = parseInt(saved);
+            } else {
+                maxUnlockedStage = 1;
+            }
+        }
+
+        function saveProgress() {
+            localStorage.setItem('levelDevil_maxStage', maxUnlockedStage);
+        }
+
+        function resetProgress() {
+            if (confirm("هل تريد تصفير اللعبة وإعادة قفل جميع المراحل؟")) {
+                maxUnlockedStage = 1;
+                saveProgress();
+                buildMenu();
+            }
+        }
+
+        // --- بناء واجهة القائمة الرئيسية ---
+        function buildMenu() {
+            loadSavedProgress();
+            const listContainer = document.getElementById('worlds-list');
+            listContainer.innerHTML = '';
+
+            for (let w = 0; w < 5; w++) {
+                const worldObj = worlds[w];
+                const block = document.createElement('div');
+                block.className = 'world-block';
+
+                const title = document.createElement('div');
+                title.className = 'world-title';
+                title.innerText = `العالم ${w + 1}: ${worldObj.name}`;
+                block.appendChild(title);
+
+                const grid = document.createElement('div');
+                grid.className = 'stages-grid';
+
+                for (let s = 1; s <= 5; s++) {
+                    const stageNum = w * 5 + s;
+                    const btn = document.createElement('div');
+                    
+                    if (stageNum <= maxUnlockedStage) {
+                        btn.className = 'stage-btn';
+                        btn.innerText = stageNum;
+                        btn.onclick = () => launchStage(stageNum);
+                    } else {
+                        btn.className = 'stage-btn locked';
+                        btn.innerText = '🔒';
+                    }
+                    grid.appendChild(btn);
+                }
+
+                block.appendChild(grid);
+                listContainer.appendChild(block);
+            }
+            
+            document.getElementById('main-menu').style.display = 'flex';
+            document.getElementById('game-container').style.display = 'none';
+            gameActive = false;
+        }
+
+        function launchStage(stageNum) {
+            stage = stageNum;
+            document.getElementById('main-menu').style.display = 'none';
+            document.getElementById('game-container').style.display = 'flex';
+            buildStage(stage);
+            gameActive = true;
+        }
+
+        function returnToMenu() {
+            buildMenu();
+        }
+
+        // بناء المرحلة وتفاصيل الخدع
+        function buildStage(num) {
+            player.x = 60;
+            player.y = 200;
+            player.vx = 0;
+            player.vy = 0;
+            player.trail = [];
+            platforms = [];
+            spikes = [];
+            traps = [];
+            gameActive = true;
+
+            // إعادة ضبط الجاذبية والقفز للقيم الطبيعية
+            player.gravity = 0.5;
+            player.jumpForce = -9.5;
+            
+            portal.x = 720;
+            portal.y = 310;
+            portal.w = 35;
+            portal.h = 50;
+
+            const world = getCurrentWorld();
+            document.getElementById('world-txt').innerText = `${world.name} (مرحلة ${num})`;
+            document.getElementById('death-txt').innerText = `الوفيات: ${deaths}`;
+
+            // انيميشن Vhooo عند البدء
+            const introOverlay = document.getElementById('stage-intro-overlay');
+            introOverlay.innerHTML = `<div class="intro-text">المرحلة ${num}</div>`;
+            introOverlay.style.display = 'flex';
+            setTimeout(() => {
+                introOverlay.style.display = 'none';
+            }, 1200);
+
+            // الأرضية الافتراضية
+            platforms.push({ x: 0, y: 360, w: 800, h: 90, type: 'normal', visible: true });
+
+            switch(num) {
+                case 1:
+                    addSpike(380, 335, 30, 25);
+                    break;
+                case 2:
+                    let s2 = addSpike(380, 335, 30, 25);
+                    traps.push({
+                        triggered: false,
+                        update: function() {
+                            if (player.x > 260 && !this.triggered) {
+                                this.triggered = true;
+                                s2.h = 75; 
+                                s2.y = 360 - 75;
+                                playSound('troll');
+                            }
+                        }
+                    });
+                    break;
+                case 3:
+                    platforms.push({ x: 340, y: 360, w: 120, h: 90, type: 'bridge', t_vy: 0, triggered: false });
+                    platforms[0].w = 340;
+                    platforms.push({ x: 460, y: 360, w: 340, h: 90, type: 'normal', visible: true });
+                    break;
+                case 4:
+                    let block = { x: 340, y: -60, w: 80, h: 80, type: 'normal', vy: 0, triggered: false, visible: true };
+                    platforms.push(block);
+                    traps.push({
+                        update: function() {
+                            if (player.x > 240 && !block.triggered) {
+                                block.triggered = true;
+                                block.vy = 8;
+                                playSound('troll');
+                            }
+                            if (block.triggered) {
+                                block.y += block.vy;
+                                if (block.y >= 240) { block.y = 240; block.vy = 0; }
+                            }
+                        }
+                    });
+                    break;
+                case 5:
+                    addSpike(400, 335, 40, 25);
+                    traps.push({
+                        triggered: false,
+                        update: function() {
+                            if (player.x > 580 && !this.triggered) {
+                                this.triggered = true;
+                                portal.y = 180; 
+                                platforms.push({ x: 650, y: 275, w: 120, h: 20, type: 'normal', visible: true });
+                                playSound('troll');
+                            }
+                        }
+                    });
+                    break;
+                case 6:
+                    let fb = { x: 400, y: -20, r: 15, vy: 5 };
+                    traps.push({
+                        update: function() {
+                            fb.y += fb.vy;
+                            if (fb.y > 450) fb.y = -20;
+                            let dx = (player.x + 12) - fb.x;
+                            let dy = (player.y + 12) - fb.y;
+                            if (Math.sqrt(dx*dx + dy*dy) < 22) {
+                                endGame();
+                            }
+                        },
+                        draw: function() {
+                            ctx.fillStyle = '#ff3300';
+                            ctx.beginPath(); ctx.arc(fb.x, fb.y, fb.r, 0, Math.PI*2); ctx.fill();
+                        }
+                    });
+                    break;
+                case 7:
+                    let s7 = addSpike(480, 360, 30, 25);
+                    s7.hidden = true;
+                    traps.push({
+                        triggered: false,
+                        update: function() {
+                            if (player.x > 360 && !this.triggered) {
+                                this.triggered = true;
+                                s7.hidden = false;
+                                s7.y = 335;
+                                playSound('troll');
+                            }
+                        }
+                    });
+                    break;
+                case 8:
+                    platforms[0].w = 200;
+                    platforms.push({ x: 600, y: 360, w: 200, h: 90, type: 'normal', visible: true });
+                    let hiddenPlat = { x: 200, y: 360, w: 400, h: 90, type: 'normal', visible: false };
+                    platforms.push(hiddenPlat);
+                    traps.push({
+                        update: function() {
+                            if (player.x > 180) {
+                                hiddenPlat.visible = true;
+                            }
+                        }
+                    });
+                    break;
+                case 9:
+                    let roof = { x: 0, y: -100, w: 800, h: 180, type: 'normal', vy: 0, triggered: false, visible: true };
+                    platforms.push(roof);
+                    traps.push({
+                        update: function() {
+                            if (player.x > 150 && !roof.triggered) {
+                                roof.triggered = true;
+                                roof.vy = 4;
+                                playSound('troll');
+                            }
+                            if (roof.triggered) {
+                                roof.y += roof.vy;
+                                if (roof.y >= 0) { roof.y = 0; roof.vy = 0; }
+                            }
+                        }
+                    });
+                    break;
+                case 10:
+                    let fakePortalSpike = addSpike(720, 335, 30, 25);
+                    fakePortalSpike.hidden = true;
+                    traps.push({
+                        triggered: false,
+                        update: function() {
+                            if (player.x > 610 && !this.triggered) {
+                                this.triggered = true;
+                                fakePortalSpike.hidden = false;
+                                portal.x = 100; portal.y = 180;
+                                platforms.push({ x: 50, y: 275, w: 120, h: 20, type: 'normal', visible: true });
+                                playSound('troll');
+                            }
+                        }
+                    });
+                    break;
+                case 11:
+                    traps.push({
+                        triggered: false,
+                        update: function() {
+                            if (player.x > 350 && !this.triggered) {
+                                this.triggered = true;
+                                player.gravity = -0.3; 
+                                player.jumpForce = 8; 
+                                platforms.push({ x: 0, y: 0, w: 800, h: 40, type: 'normal', visible: true });
+                                addSpike(450, 40, 30, 25).y = 40;
+                                portal.y = 40; 
+                                playSound('troll');
+                            }
+                        }
+                    });
+                    break;
+                case 12:
+                    platforms[0].w = 330;
+                    let fakePlat = { x: 330, y: 360, w: 140, h: 90, type: 'fake', visible: true };
+                    platforms.push(fakePlat);
+                    platforms.push({ x: 470, y: 360, w: 330, h: 90, type: 'normal', visible: true });
+                    traps.push({
+                        update: function() {
+                            if (player.x > 310) {
+                                fakePlat.w = 0;
+                            }
+                        }
+                    });
+                    break;
+                case 13:
+                    let chaserSpike = addSpike(-50, 335, 35, 25);
+                    traps.push({
+                        update: function() {
+                            if (player.x > 100) {
+                                chaserSpike.x += 3.2; 
+                            }
+                        }
+                    });
+                    break;
+                case 14:
+                    let wall14 = { x: 500, y: 200, w: 40, h: 160, type: 'normal', visible: true };
+                    platforms.push(wall14);
+                    let btn14 = { x: 300, y: 355, w: 30, h: 5, pressed: false };
+                    traps.push({
+                        update: function() {
+                            if (player.x + player.width > btn14.x && player.x < btn14.x + btn14.w && 
+                                player.y + player.height >= btn14.y && player.y <= btn14.y + btn14.h) {
+                                if (!btn14.pressed) {
+                                    btn14.pressed = true;
+                                    playSound('troll');
+                                    addSpike(500, 335, 30, 25).vx = -6.5; 
+                                }
+                            }
+                            if (btn14.pressed) {
+                                if (wall14.y < 360) {
+                                    wall14.y += 3; 
+                                    wall14.h -= 3;
+                                    if (wall14.h < 0) { wall14.h = 0; wall14.y = 360; }
+                                }
+                            }
+                            spikes.forEach(s => {
+                                if (s.vx) s.x += s.vx;
+                            });
+                        },
+                        draw: function() {
+                            ctx.fillStyle = btn14.pressed ? '#ff3300' : '#00ff00';
+                            ctx.fillRect(btn14.x, btn14.y, btn14.w, btn14.h);
+                        }
+                    });
+                    break;
+                case 15:
+                    platforms.push({ x: 520, y: 240, w: 100, h: 15, type: 'normal', visible: true });
+                    traps.push({
+                        update: function() {
+                            portal.y = 130 + Math.sin(Date.now() / 250) * 90;
+                        }
+                    });
+                    break;
+                case 16:
+                    let snowball = { x: 820, y: 325, r: 25, vx: -5.5 };
+                    traps.push({
+                        update: function() {
+                            if (player.x > 150) {
+                                snowball.x += snowball.vx;
+                            }
+                            if (snowball.x < -50) snowball.x = 850;
+                            let dx = (player.x + player.width / 2) - snowball.x;
+                            let dy = (player.y + player.height / 2) - snowball.y;
+                            if (Math.sqrt(dx*dx + dy*dy) < (snowball.r + 8)) {
+                                endGame();
+                            }
+                        },
+                        draw: function() {
+                            let grad = ctx.createRadialGradient(snowball.x - 5, snowball.y - 5, 2, snowball.x, snowball.y, snowball.r);
+                            grad.addColorStop(0, '#ffffff');
+                            grad.addColorStop(1, '#a3d8f4');
+                            ctx.fillStyle = grad;
+                            ctx.beginPath(); 
+                            ctx.arc(snowball.x, snowball.y, snowball.r, 0, Math.PI * 2); 
+                            ctx.fill();
+
+                            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                            ctx.beginPath();
+                            ctx.arc(snowball.x - 8, snowball.y - 8, 5, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    });
+                    break;
+                case 17:
+                    let iceSpike1 = addSpike(400, -50, 30, 35);
+                    let iceSpike2 = addSpike(580, -50, 30, 35);
+                    traps.push({
+                        triggered1: false,
+                        triggered2: false,
+                        update: function() {
+                            if (player.x > 280 && !this.triggered1) {
+                                this.triggered1 = true;
+                                playSound('troll');
+                            }
+                            if (this.triggered1) {
+                                iceSpike1.y += 10;
+                                if (iceSpike1.y > 325) iceSpike1.y = 325;
+                            }
+
+                            if (player.x > 460 && !this.triggered2) {
+                                this.triggered2 = true;
+                                playSound('troll');
+                            }
+                            if (this.triggered2) {
+                                iceSpike2.y += 11;
+                                if (iceSpike2.y > 325) iceSpike2.y = 325;
+                            }
+                        }
+                    });
+                    break;
+                case 18:
+                    platforms[0].w = 350;
+                    platforms.push({ x: 450, y: 360, w: 350, h: 90, type: 'normal', visible: true });
+                    let s18 = addSpike(400, 335, 40, 25);
+                    traps.push({
+                        triggered: false,
+                        update: function() {
+                            if (player.x > 260 && player.vy < 0 && !this.triggered) {
+                                this.triggered = true;
+                                playSound('troll');
+                            }
+                            if (this.triggered) {
+                                s18.x -= 4.5;
+                            }
+                        }
+                    });
+                    break;
+                case 19:
+                    addSpike(240, 335, 30, 25);
+                    traps.push({
+                        update: function() {
+                            if (player.x > 320) {
+                                player.x -= 2.2; 
+                                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                                ctx.lineWidth = 2;
+                                ctx.beginPath();
+                                let now = Date.now() / 10;
+                                for (let i = 0; i < 6; i++) {
+                                    let ry = 80 + i * 50;
+                                    let rx = (now + i * 150) % 800;
+                                    ctx.moveTo(800 - rx, ry);
+                                    ctx.lineTo(850 - rx, ry);
+                                }
+                                ctx.stroke();
+                            }
+                        }
+                    });
+                    break;
+                case 20:
+                    let spring = { x: 640, y: 350, w: 30, h: 10, triggered: false };
+                    traps.push({
+                        update: function() {
+                            let dist = Math.abs(player.x - portal.x);
+                            if (dist < 80 && portal.y > 200) {
+                                portal.y = 190;
+                                playSound('troll');
+                            }
+                            if (player.x + player.width > spring.x && player.x < spring.x + spring.w &&
+                                player.y + player.height >= spring.y && player.y <= spring.y + spring.h) {
+                                player.vy = -12; 
+                                spring.triggered = true;
+                                playSound('jump');
+                                setTimeout(() => { spring.triggered = false; }, 300);
+                            }
+                        },
+                        draw: function() {
+                            ctx.fillStyle = spring.triggered ? '#ff0055' : '#00ffff';
+                            ctx.fillRect(spring.x, spring.triggered ? spring.y + 4 : spring.y, spring.w, spring.triggered ? 6 : 10);
+                        }
+                    });
+                    break;
+                case 21:
+                    let fallingDebris = [];
+                    traps.push({
+                        timer: 0,
+                        update: function() {
+                            if (player.x > 300) {
+                                screenShake = 3;
+                                this.timer++;
+                                if (this.timer % 40 === 0 && fallingDebris.length < 5) {
+                                    fallingDebris.push({
+                                        x: player.x + (Math.random() * 200 - 100),
+                                        y: -20,
+                                        r: 10 + Math.random() * 10,
+                                        vy: 4 + Math.random() * 4
+                                    });
+                                }
+                            }
+                            for (let i = fallingDebris.length - 1; i >= 0; i--) {
+                                let d = fallingDebris[i];
+                                d.y += d.vy;
+                                ctx.fillStyle = '#ff6600';
+                                ctx.beginPath();
+                                ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
+                                ctx.fill();
+
+                                let dx = (player.x + player.width/2) - d.x;
+                                let dy = (player.y + player.height/2) - d.y;
+                                if (Math.sqrt(dx*dx + dy*dy) < (d.r + 10)) {
+                                    endGame();
+                                }
+                                if (d.y > 450) {
+                                    fallingDebris.splice(i, 1);
+                                }
+                            }
+                        }
+                    });
+                    break;
+                case 22:
+                    platforms[0].w = 250;
+                    let b1 = { x: 280, y: 360, w: 120, h: 90, type: 'normal', visible: true };
+                    let b2 = { x: 440, y: 360, w: 120, h: 90, type: 'normal', visible: true };
+                    platforms.push(b1, b2);
+                    platforms.push({ x: 600, y: 360, w: 200, h: 90, type: 'normal', visible: true });
+                    traps.push({
+                        update: function() {
+                            let cycle = (Date.now() / 1000) % 2; 
+                            if (cycle < 1.1) {
+                                b1.w = 120;
+                            } else {
+                                b1.w = 0;
+                            }
+                            if (cycle > 0.85) {
+                                b2.w = 120;
+                            } else {
+                                b2.w = 0;
+                            }
+                        }
+                    });
+                    break;
+                case 23:
+                    traps.push({
+                        timer: 0,
+                        update: function() {
+                            this.timer++;
+                            if (this.timer % 25 === 0) {
+                                let rx = Math.random() * 600 + 150;
+                                addSpike(rx, 0, 20, 20).vy = 6;
+                            }
+                            for (let i = spikes.length - 1; i >= 0; i--) {
+                                let s = spikes[i];
+                                if (s.vy) {
+                                    s.y += s.vy;
+                                    if (s.y > VIEW_HEIGHT) {
+                                        spikes.splice(i, 1); 
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    break;
+
+                // --- تحسينات المرحلة قبل الأخيرة (المرحلة 24): إضافة منصات متداعية ---
+                case 24:
+                    platforms[0].w = 200;
+                    let elevator = { x: 250, y: 360, w: 120, h: 90, type: 'normal', visible: true };
+                    platforms.push(elevator);
+
+                    // منصات متداعية تنهار بعد ملامستها
+                    let crumb1 = { x: 400, y: 220, w: 60, h: 15, type: 'normal', visible: true, stepped: false, timer: 30 };
+                    let crumb2 = { x: 490, y: 280, w: 60, h: 15, type: 'normal', visible: true, stepped: false, timer: 30 };
+                    platforms.push(crumb1, crumb2);
+
+                    // أرض النهاية
+                    platforms.push({ x: 580, y: 360, w: 220, h: 90, type: 'normal', visible: true });
+                    
+                    let ceilingSpike = addSpike(300, -50, 30, 25);
+                    ceilingSpike.vy = 0;
+                    
+                    traps.push({
+                        triggered: false,
+                        update: function() {
+                            if (player.x > 220) {
+                                elevator.y -= 2.5;
+                                if (elevator.y < 160) elevator.y = 160;
+                                
+                                if (elevator.y < 260 && !this.triggered) {
+                                    this.triggered = true;
+                                    ceilingSpike.vy = 7.5;
+                                    playSound('troll');
+                                }
+                            }
+                            if (ceilingSpike.vy > 0) {
+                                ceilingSpike.y += ceilingSpike.vy;
+                                if (ceilingSpike.y > 335) {
+                                    ceilingSpike.y = 335;
+                                    ceilingSpike.vy = 0;
+                                }
+                            }
+
+                            // منطق المنصات المتداعية
+                            [crumb1, crumb2].forEach(cp => {
+                                if (player.x + player.width > cp.x && player.x < cp.x + cp.w &&
+                                    Math.abs((player.y + player.height) - cp.y) < 5 && player.vy >= 0) {
+                                    cp.stepped = true;
+                                }
+                                if (cp.stepped) {
+                                    cp.timer--;
+                                    if (cp.timer <= 0) {
+                                        cp.w = 0; // تختفي المنصة تماماً
+                                    }
+                                }
+                            });
+                        },
+                        draw: function() {
+                            [crumb1, crumb2].forEach(cp => {
+                                if (cp.w > 0 && cp.stepped) {
+                                    ctx.fillStyle = `rgba(255, 60, 60, ${cp.timer / 30})`;
+                                    ctx.fillRect(cp.x, cp.y, cp.w, cp.h);
+                                }
+                            });
+                        }
+                    });
+                    break;
+
+                case 25:
+                    platforms[0].w = 300;
+                    platforms.push({ x: 500, y: 360, w: 300, h: 90, type: 'normal', visible: true });
+                    let endSpike = addSpike(750, 335, 40, 25);
+                    traps.push({
+                        triggered: false,
+                        update: function() {
+                            player.gravity = 0.25;
+                            endSpike.x -= 3.5;
+                            if (endSpike.x < 300) endSpike.x = 750;
+                            if (player.x > 620 && !this.triggered) {
+                                this.triggered = true;
+                                portal.x = 50; 
+                                playSound('troll');
+                            }
+                        }
+                    });
+                    break;
+            }
+        }
+
+        function addSpike(x, y, w, h) {
+            let s = { x, y, w, h, originalY: y, hidden: false, vx: 0, vy: 0 };
+            spikes.push(s);
+            return s;
+        }
+
+        function checkSpikeCollision(player, spike) {
+            if (spike.hidden) return false;
+            const padX = spike.w * 0.15;
+            const padY = spike.h * 0.15;
+            return player.x < (spike.x + spike.w - padX) &&
+                   player.x + player.width > (spike.x + padX) &&
+                   player.y < (spike.y + spike.h) &&
+                   player.y + player.height > (spike.y + padY);
+        }
+
+        function endGame() {
+            if (gameActive) {
+                gameActive = false;
+                playSound('die');
+                screenShake = 15;
+                
+                for (let i = 0; i < 20; i++) {
+                    particles.push({
+                        x: player.x + player.width/2,
+                        y: player.y + player.height/2,
+                        vx: (Math.random() - 0.5) * 10,
+                        vy: (Math.random() - 0.5) * 10,
+                        size: Math.random() * 5 + 2,
+                        alpha: 1,
+                        color: getCurrentWorld().spikeColor
+                    });
+                }
+
+                setTimeout(() => {
+                    deaths++;
+                    buildStage(stage);
+                }, 500);
+            }
+        }
+
+        // --- تحديث الفيزياء والحركة المحسنة ---
+        function update() {
+            if (!gameActive) return;
+
+            if (screenShake > 0) screenShake *= 0.9;
+
+            particles.forEach((p, idx) => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.alpha -= 0.04;
+                if (p.alpha <= 0) particles.splice(idx, 1);
+            });
+
+            if (keys.left) {
+                player.vx = -player.speed;
+                player.faceRight = false;
+            } else if (keys.right) {
+                player.vx = player.speed;
+                player.faceRight = true;
+            } else {
+                player.vx = 0;
+            }
+
+            player.vy += player.gravity;
+            if (keys.jump && player.grounded) {
+                player.vy = player.jumpForce;
+                player.grounded = false;
+                playSound('jump');
+            }
+
+            player.x += player.vx;
+            player.grounded = false;
+
+            if (player.x < 0) player.x = 0;
+            if (player.x + player.width > VIEW_WIDTH) player.x = VIEW_WIDTH - player.width;
+
+            // اصطدام X
+            platforms.forEach(p => {
+                if (p.w === 0 || (p.type === 'normal' && p.visible === false)) return;
+                if (player.x < p.x + p.w && player.x + player.width > p.x &&
+                    player.y < p.y + p.h && player.y + player.height > p.y) {
+                    if (player.vx > 0) player.x = p.x - player.width;
+                    if (player.vx < 0) player.x = p.x + p.w;
+                }
+            });
+
+            player.y += player.vy;
+
+            // اصطدام Y مع تعديلات السقف المعكوس
+            platforms.forEach(p => {
+                if (p.w === 0 || (p.type === 'normal' && p.visible === false)) return;
+                if (player.x < p.x + p.w && player.x + player.width > p.x &&
+                    player.y < p.y + p.h && player.y + player.height > p.y) {
+                    
+                    if (player.gravity > 0) { 
+                        if (player.vy > 0) { 
+                            player.y = p.y - player.height;
+                            player.vy = 0;
+                            player.grounded = true;
+
+                            if (p.type === 'bridge' && !p.triggered) {
+                                p.triggered = true;
+                                p.t_vy = 5;
+                                playSound('troll');
+                            }
+                        } else if (player.vy < 0) { 
+                            player.y = p.y + p.h;
+                            player.vy = 0;
+                        }
+                    } else { 
+                        if (player.vy < 0) { 
+                            player.y = p.y + p.h;
+                            player.vy = 0;
+                            player.grounded = true; 
+                        } else if (player.vy > 0) { 
+                            player.y = p.y - player.height;
+                            player.vy = 0;
+                        }
+                    }
+                }
+            });
+
+            const isMoving = Math.abs(player.vx) > 0.1 || Math.abs(player.vy) > 0.1;
+            if (isMoving) {
+                player.trail.push({ x: player.x, y: player.y });
+                if (player.trail.length > 4) player.trail.shift();
+                eyeAnimTimer += 0.15;
+            } else {
+                player.trail = []; 
+                eyeAnimTimer = 0; 
+            }
+
+            platforms.forEach(p => {
+                if (p.type === 'bridge' && p.triggered) {
+                    p.y += p.t_vy;
+                }
+            });
+
+            traps.forEach(t => t.update());
+
+            spikes.forEach(s => {
+                if (checkSpikeCollision(player, s)) {
+                    endGame();
+                }
+            });
+
+            if (player.gravity > 0 && player.y > VIEW_HEIGHT) {
+                endGame();
+            } else if (player.gravity < 0 && player.y + player.height < 0) {
+                endGame();
+            }
+
+            // الفوز وتجاوز المرحلة والتحكم في نهاية اللعبة
+            if (player.x < portal.x + portal.w && player.x + player.width > portal.x &&
+                player.y < portal.y + portal.h && player.y + player.height > portal.y) {
+                
+                gameActive = false; 
+                playSound('win');
+                
+                const banner = document.getElementById('clear-banner');
+                const bannerTitle = document.getElementById('clear-title');
+
+                if (stage === 25) {
+                    // رسالة النهاية المطلوبة في آخر حلقة
+                    bannerTitle.innerHTML = `تهانينا! لقد أنهيت اللعبة بالكامل!<br><span style="font-size: 1.2rem; color: #ff2a5f; text-shadow: 0 0 10px rgba(255,42,95,0.4);">تابعني لأجزاء من اللعبة قادمة</span>`;
+                    banner.style.display = 'flex';
+                    
+                    setTimeout(() => {
+                        banner.style.display = 'none';
+                        stage = 1;
+                        buildMenu();
+                    }, 4500);
+                } else {
+                    bannerTitle.innerText = `تم تجاوز المرحلة ${stage}!`;
+                    banner.style.display = 'flex';
+
+                    let isWorldFinished = (stage % 5 === 0); 
+
+                    if (stage === maxUnlockedStage && maxUnlockedStage < 25) {
+                        maxUnlockedStage++;
+                        saveProgress();
+                    }
+
+                    setTimeout(() => {
+                        banner.style.display = 'none';
+                        
+                        if (isWorldFinished) {
+                            if (stage < 25) {
+                                stage++;
+                            }
+                            buildMenu(); 
+                        } else {
+                            if (stage < 25) {
+                                stage++;
+                                buildStage(stage);
+                            }
+                        }
+                    }, 1500);
+                }
+            }
+
+            portalRotation += 0.04;
+        }
+
+        // --- الرسم والعرض البصري ---
+        function draw() {
+            if (!gameActive) return;
+
+            const world = getCurrentWorld();
+            ctx.fillStyle = world.bg;
+            ctx.fillRect(0, 0, VIEW_WIDTH, VIEW_HEIGHT);
+
+            ctx.save();
+            if (screenShake > 0) {
+                ctx.translate((Math.random() - 0.5) * screenShake, (Math.random() - 0.5) * screenShake);
+            }
+
+            traps.forEach(t => { if (t.draw) t.draw(); });
+
+            // رسم الأرضيات
+            platforms.forEach(p => {
+                if (p.w === 0 || (p.type === 'normal' && p.visible === false)) return;
+                ctx.fillStyle = world.platformColor;
+                ctx.fillRect(p.x, p.y, p.w, p.h);
+                ctx.fillStyle = world.platTop;
+                ctx.fillRect(p.x, p.y, p.w, 6);
+            });
+
+            // رسم ذيل الحركة (Neon Trail)
+            player.trail.forEach((t, index) => {
+                ctx.save();
+                ctx.globalAlpha = (index + 1) * 0.12;
+                ctx.fillStyle = '#00f0ff';
+                ctx.fillRect(t.x, t.y, player.width, player.height);
+                ctx.restore();
+            });
+
+            // رسم اللاعب وعيونه
+            if (gameActive) {
+                ctx.fillStyle = '#00f0ff';
+                ctx.fillRect(player.x, player.y, player.width, player.height);
+                ctx.fillStyle = '#000';
+                let eyeOffset = player.faceRight ? 12 : 2;
+                let bounceY = Math.sin(eyeAnimTimer) * 1.5;
+                ctx.fillRect(player.x + eyeOffset, player.y + 6 + bounceY, 4, 6);
+                ctx.fillRect(player.x + eyeOffset + 6, player.y + 6 + bounceY, 4, 6);
+            }
+
+            // رسم الأشواك
+            spikes.forEach(s => {
+                if (s.hidden) return;
+                ctx.fillStyle = world.spikeColor;
+                ctx.beginPath();
+                ctx.moveTo(s.x, s.y + s.h);
+                ctx.lineTo(s.x + s.w / 2, s.y);
+                ctx.lineTo(s.x + s.w, s.y + s.h);
+                ctx.closePath();
+                ctx.fill();
+            });
+
+            // رسم البوابة
+            ctx.save();
+            ctx.translate(portal.x + portal.w / 2, portal.y + portal.h / 2);
+            ctx.rotate(portalRotation);
+            ctx.fillStyle = '#33cc66';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, portal.w / 2, portal.h / 2, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // جزيئات الموت
+            particles.forEach(p => {
+                ctx.save();
+                ctx.globalAlpha = p.alpha;
+                ctx.fillStyle = p.color;
+                ctx.fillRect(p.x, p.y, p.size, p.size);
+                ctx.restore();
+            });
+
+            ctx.restore();
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // --- تهيئة أزرار التحكم اللمسية والفيزيائية ---
+        function setupControls() {
+            // دالة موحدة لربط أحداث اللمس والماوس لمنع التعليق
+            function bindControl(btnId, action) {
+                const btn = document.getElementById(btnId);
+                
+                // اللمس للهواتف
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    initAudio();
+                    keys[action] = true;
+                }, { passive: false });
+                
+                btn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    keys[action] = false;
+                }, { passive: false });
+
+                btn.addEventListener('touchcancel', (e) => {
+                    e.preventDefault();
+                    keys[action] = false;
+                }, { passive: false });
+
+                // الماوس للحواسيب
+                btn.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    initAudio();
+                    keys[action] = true;
+                });
+                btn.addEventListener('mouseup', (e) => {
+                    e.preventDefault();
+                    keys[action] = false;
+                });
+                btn.addEventListener('mouseleave', () => {
+                    keys[action] = false;
+                });
+            }
+
+            bindControl('btn-left', 'left');
+            bindControl('btn-right', 'right');
+            bindControl('btn-jump', 'jump');
+
+            // دعم لوحة المفاتيح
+            window.addEventListener('keydown', (e) => {
+                initAudio();
+                if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+                if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+                if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') keys.jump = true;
+            });
+            window.addEventListener('keyup', (e) => {
+                if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+                if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+                if (e.key === 'ArrowUp' || e.key === 'w' || e.key === ' ') keys.jump = false;
+            });
+        }
+
+        setupControls();
+        buildMenu();
+        gameLoop();
+    </script>
+</body>
+</html>
