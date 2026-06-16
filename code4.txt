@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SubBall 3D</title>
+    <style>
+        :root {
+            --primary: #00e676;
+            --secondary: #ff3d00;
+            --dark: #0d0d14;
+            --light: #ffffff;
+            --gold: #ffd600;
+        }
+        
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--dark);
+            font-family: 'Segoe UI', Roboto, sans-serif;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1;
+        }
+
+        .ui-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 20px;
+        }
+
+        .energy-bar-container {
+            width: 40%;
+            max-width: 300px;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            position: absolute;
+            top: calc(15px + env(safe-area-inset-top, 0px));
+            left: 50%;
+            transform: translateX(-50%);
+            overflow: hidden;
+            border: 1px solid rgba(255, 214, 0, 0.2);
+            box-shadow: 0 0 10px rgba(0,0,0,0.5);
+            z-index: 11;
+        }
+
+        .energy-bar-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #ffb300, var(--gold));
+            box-shadow: 0 0 15px var(--gold);
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .hud {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-top: calc(15px + env(safe-area-inset-top, 10px));
+        }
+
+        .score-container {
+            background: rgba(0, 230, 118, 0.15);
+            padding: 10px 25px;
+            border-radius: 50px;
+            border: 3px solid var(--primary);
+            color: var(--light);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            box-shadow: 0 0 20px rgba(0,230,118,0.4);
+            transition: all 0.3s ease;
+        }
+
+        .score-container.rush-ui {
+            border-color: var(--gold);
+            background: rgba(255, 214, 0, 0.25);
+            box-shadow: 0 0 30px var(--gold);
+        }
+
+        .score-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--primary);
+            text-align: center;
+            font-weight: bold;
+            transition: color 0.3s ease;
+        }
+        .rush-ui .score-label {
+            color: var(--gold);
+        }
+
+        .score-val {
+            font-size: 32px;
+            font-weight: 900;
+            text-align: center;
+        }
+
+        #best-container {
+            border-color: #ffd600;
+            background: rgba(255, 214, 0, 0.1);
+            box-shadow: 0 0 20px rgba(255,214,0,0.3);
+        }
+        #best-container .score-label {
+            color: #ffd600;
+        }
+
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 20;
+            background: rgba(10, 15, 10, 0.7);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            transition: opacity 0.2s ease;
+            pointer-events: auto;
+        }
+
+        .hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        h1 {
+            color: var(--light);
+            font-size: 42px;
+            font-weight: 900;
+            text-transform: uppercase;
+            text-align: center;
+            text-shadow: 0 4px 15px rgba(0,0,0,0.6);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #00e676 0%, #00b0ff 100%);
+            border: none;
+            color: white;
+            padding: 16px 50px;
+            font-size: 22px;
+            font-weight: 900;
+            text-transform: uppercase;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(0,230,118,0.5);
+            margin-top: 25px;
+        }
+
+        #gameover-screen h1 {
+            color: var(--secondary);
+        }
+
+        #goal-splash {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 15;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: transparent; 
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.1s ease;
+        }
+
+        .goal-text {
+            font-size: 90px;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 0 20px #00e676, 0 0 40px #00e676;
+            transform: scale(0.5);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+
+        #goal-splash.active {
+            opacity: 1;
+        }
+        #goal-splash.active .goal-text {
+            transform: scale(1);
+        }
+
+        #goal-splash.rush .goal-text {
+            font-size: 130px;
+            text-shadow: 0 0 30px var(--gold), 0 0 60px var(--gold);
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <div id="canvas-container"></div>
+
+    <div class="energy-bar-container">
+        <div id="energy-fill" class="energy-bar-fill"></div>
+    </div>
+
+    <div class="ui-layer">
+        <div class="hud">
+            <div class="score-container" id="score-box">
+                <div class="score-label" id="score-title">Goals</div>
+                <div id="score" class="score-val">0</div>
+            </div>
+            <div class="score-container" id="best-container">
+                <div class="score-label">Best</div>
+                <div id="highscore" class="score-val">0</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start screen name update to SubBall -->
+    <div id="start-screen" class="screen">
+        <h1>SubBall</h1>
+        <button class="btn" id="start-btn">KICK</button>
+    </div>
+
+    <div id="gameover-screen" class="screen hidden">
+        <h1>FAILED</h1>
+        <button class="btn" id="restart-btn">AGAIN</button>
+    </div>
+
+    <div id="goal-splash">
+        <div class="goal-text" id="splash-text">GOAL!</div>
+    </div>
+
+    <script>
+        // --- AUDIO ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        function playSound(type) {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const now = audioCtx.currentTime;
+
+            if (type === 'swipe') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(180, now);
+                osc.frequency.exponentialRampToValueAtTime(500, now + 0.08);
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.08);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.08);
+            } else if (type === 'goal') {
+                [0, 0.05, 0.1].forEach((delay, idx) => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    const freqs = [523.25, 659.25, 783.99]; 
+                    osc.frequency.setValueAtTime(freqs[idx], now + delay);
+                    gain.gain.setValueAtTime(0.15, now + delay);
+                    gain.gain.linearRampToValueAtTime(0.01, now + delay + 0.2);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(now + delay); osc.stop(now + delay + 0.2);
+                });
+            } else if (type === 'gameover') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, now);
+                osc.frequency.linearRampToValueAtTime(30, now + 0.3);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.exponentialRampToValueAtTime(0.01, now + 0.3);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.3);
+            } else if (type === 'rush') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(250, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.4);
+                gain.gain.setValueAtTime(0.25, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.4);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.4);
+            } else if (type === 'smash') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(150, now);
+                osc.frequency.linearRampToValueAtTime(40, now + 0.15);
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.15);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(now); osc.stop(now + 0.15);
+            }
+        }
+
+        // --- GAME CONFIG ---
+        const PITCH_WIDTH = 10;
+        const LANE_WIDTH = PITCH_WIDTH / 3;
+        const FORWARD_SPEED_START = 22; 
+        const SPEED_INCREMENT = 0.4;    
+        const DEFENDER_SPACING = 32;    
+        const SWIPE_THRESHOLD = 15; 
+
+        let gameState = 'MENU'; 
+        let goals = 0;
+        let highscore = localStorage.getItem('wc_high_goals') || 0;
+        let speedMultiplier = 1;
+        
+        // --- GOLDEN ENERGY REGULATORS ---
+        let isGoldRush = false;
+        let goldRushTimer = 0;
+        let rushGoalCounter = 0;  
+        let currentRushTarget = 10; // Dynamic scaling variable tracker
+        const RUSH_DURATION = 5; 
+
+        let ballRadius = 0.5;
+        let ballPos = new THREE.Vector3(0, ballRadius, 0);
+        let currentLane = 0; 
+
+        let shakeDuration = 0;
+        let shakeIntensity = 0;
+
+        let defenders = [];
+        let pitchSegments = [];
+        let stadiumSegments = [];
+        let goalGlows = [];
+        let particles = [];
+        let trailTimer = 0;
+
+        let touchStartX = 0;
+        let touchStartY = 0;
+
+        // --- THREE.JS INITIALIZATION ---
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        const baseFogColor = new THREE.Color('#050a05');
+        const goldFogColor = new THREE.Color('#3a2f00');
+        scene.background = baseFogColor;
+        scene.fog = new THREE.Fog(baseFogColor, 12, 40);
+
+        const camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        container.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.7);
+        scene.add(ambientLight);
+        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        dirLight.position.set(10, 30, 10);
+        scene.add(dirLight);
+
+        // --- BALL INITIALIZATION ---
+        const ballGeo = new THREE.SphereGeometry(ballRadius, 32, 32); 
+        const canvas = document.createElement('canvas');
+        canvas.width = 512; canvas.height = 256;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, 512, 256);
+
+        function drawWorldCupCurve(x, y, color, scaleX = 1, scaleY = 1, rot = 0) {
+            ctx.save(); ctx.translate(x, y); ctx.rotate(rot); ctx.scale(scaleX, scaleY);
+            ctx.beginPath(); ctx.moveTo(0, 0);
+            ctx.bezierCurveTo(40, -60, 120, -40, 160, 20);
+            ctx.bezierCurveTo(120, 60, 40, 40, 0, 0);
+            ctx.fillStyle = color; ctx.fill();
+            ctx.strokeStyle = '#ffd600'; ctx.lineWidth = 3; ctx.stroke();
+            ctx.restore();
+        }
+        drawWorldCupCurve(60, 80, '#00b0ff', 1.2, 1, 0.2);     
+        drawWorldCupCurve(300, 70, '#ff3d00', 1.1, 0.9, -0.4);  
+        drawWorldCupCurve(180, 160, '#00e676', 1, 1.2, 1.3);    
+        drawWorldCupCurve(420, 150, '#00b0ff', 1.3, 0.8, -0.8); 
+
+        const ballTex = new THREE.CanvasTexture(canvas);
+        const ballMat = new THREE.MeshStandardMaterial({ map: ballTex, roughness: 0.2 });
+        const ballMesh = new THREE.Mesh(ballGeo, ballMat);
+        scene.add(ballMesh);
+
+        // --- GOLDEN LIGHT OVERLAY AURA ---
+        const goldAuraMat = new THREE.MeshBasicMaterial({ color: 0xffd600, transparent: true, opacity: 0, side: THREE.BackSide });
+        const goldAuraGeo = new THREE.SphereGeometry(ballRadius * 1.25, 16, 16);
+        const goldAuraMesh = new THREE.Mesh(goldAuraGeo, goldAuraMat);
+        ballMesh.add(goldAuraMesh);
+
+        const shadowGeo = new THREE.PlaneGeometry(ballRadius*2, ballRadius*2);
+        const shadowMat = new THREE.MeshBasicMaterial({ color: 0x020a02, transparent: true, opacity: 0.4 });
+        const ballShadow = new THREE.Mesh(shadowGeo, shadowMat);
+        ballShadow.rotation.x = -Math.PI / 2;
+        ballShadow.position.y = 0.02;
+        scene.add(ballShadow);
+
+        // --- ENVIRONMENT MATERIALS ---
+        const pitchMat = new THREE.MeshStandardMaterial({ color: 0x144d18, roughness: 0.9 });
+        const pitchStripMat = new THREE.MeshStandardMaterial({ color: 0x1b5420, roughness: 0.9 });
+        const wallMat = new THREE.MeshStandardMaterial({ color: 0x0a3680, roughness: 0.6 }); 
+
+        const wallCanvas = document.createElement('canvas');
+        wallCanvas.width = 64; wallCanvas.height = 64;
+        const wCtx = wallCanvas.getContext('2d');
+        wCtx.fillStyle = '#555555'; wCtx.fillRect(0, 0, 64, 64);
+        wCtx.fillStyle = '#333333';
+        for(let i=0; i<30; i++) wCtx.fillRect(Math.random()*64, Math.random()*64, 3, 3);
+        const concreteWallMat = new THREE.MeshStandardMaterial({ map: new THREE.CanvasTexture(wallCanvas), roughness: 0.8 });
+
+        const goalFrameMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
+        const goalNetMat = new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true, transparent: true, opacity: 0.15 });
+
+        function createPitchSegment(zOffset) {
+            const group = new THREE.Group(); group.position.z = zOffset;
+            const isEven = Math.abs(zOffset / 10) % 2 === 0;
+            const segmentGeo = new THREE.PlaneGeometry(PITCH_WIDTH, 10);
+            const mesh = new THREE.Mesh(segmentGeo, isEven ? pitchMat : pitchStripMat);
+            mesh.rotation.x = -Math.PI / 2; group.add(mesh);
+            scene.add(group); pitchSegments.push(group);
+        }
+
+        function createStadiumSegment(zOffset) {
+            const group = new THREE.Group(); group.position.z = zOffset;
+            const boardGeo = new THREE.BoxGeometry(0.5, 1.1, 20);
+            const leftBoard = new THREE.Mesh(boardGeo, wallMat); leftBoard.position.set(-PITCH_WIDTH/2 - 0.4, 0.55, 0);
+            const rightBoard = leftBoard.clone(); rightBoard.position.x = PITCH_WIDTH/2 + 0.4;
+            group.add(leftBoard, rightBoard);
+            scene.add(group); stadiumSegments.push(group);
+        }
+
+        function spawnDefenderWallRow(zOffset) {
+            const rowGroup = new THREE.Group(); rowGroup.position.z = zOffset; rowGroup.userData = { passed: false };
+            const openLane = Math.floor(Math.random() * 3) - 1; 
+
+            for (let lane = -1; lane <= 1; lane++) {
+                if (lane === openLane) continue; 
+                const blockGeo = new THREE.BoxGeometry(LANE_WIDTH * 0.96, 2.0, 0.8);
+                const wallBlock = new THREE.Mesh(blockGeo, concreteWallMat);
+                wallBlock.position.set(lane * LANE_WIDTH, 1.0, 0);
+                wallBlock.userData = { isWallBlock: true, shattered: false };
+                rowGroup.add(wallBlock);
+            }
+
+            const goalGroup = new THREE.Group();
+            const postH = 3.2; const postW = PITCH_WIDTH - 1;
+            const pSideGeo = new THREE.CylinderGeometry(0.1, 0.1, postH, 6);
+            const pTopGeo = new THREE.CylinderGeometry(0.1, 0.1, postW, 6);
+            const leftP = new THREE.Mesh(pSideGeo, goalFrameMat); leftP.position.set(-postW/2, postH/2, -1.5); 
+            const rightP = leftP.clone(); rightP.position.x = postW/2;
+            const topP = new THREE.Mesh(pTopGeo, goalFrameMat); topP.rotation.z = Math.PI/2; topP.position.set(0, postH, -1.5);
+            const netGeo = new THREE.BoxGeometry(postW, postH, 1.2);
+            const net = new THREE.Mesh(netGeo, goalNetMat); net.position.set(0, postH/2, -0.9);
+            goalGroup.add(leftP, rightP, topP, net); rowGroup.add(goalGroup);
+
+            const glowGeo = new THREE.PlaneGeometry(PITCH_WIDTH, 1.8);
+            const glowMat = new THREE.MeshBasicMaterial({ color: 0x00ff77, transparent: true, opacity: 0.25, side: THREE.DoubleSide });
+            const glow = new THREE.Mesh(glowGeo, glowMat); glow.rotation.x = -Math.PI/2; glow.position.set(0, 0.03, -1.5);
+            rowGroup.add(glow); goalGlows.push(glow);
+
+            scene.add(rowGroup); defenders.push(rowGroup);
+        }
+
+        function spawnParticles(pos, count, colorHex, size, force) {
+            const geom = new THREE.BufferGeometry(); const positions = []; const velocities = []; const colors = [];
+            const baseColor = new THREE.Color(colorHex);
+            for(let i=0; i<count; i++) {
+                positions.push(pos.x, pos.y, pos.z);
+                velocities.push((Math.random() - 0.5) * force, Math.random() * force * 0.8, (Math.random() - 0.5) * force);
+                colors.push(baseColor.r, baseColor.g, baseColor.b);
+            }
+            geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+            const mat = new THREE.PointsMaterial({ size: size, vertexColors: true, transparent: true, opacity: 1.0 });
+            const pSystem = new THREE.Points(geom, mat);
+            pSystem.userData = { velocities, age: 0, maxAge: 30 };
+            scene.add(pSystem); particles.push(pSystem);
+        }
+
+        function updateParticles(dt) {
+            for(let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i]; const posArr = p.geometry.attributes.position.array; const v = p.userData.velocities;
+                p.userData.age++; p.material.opacity = 1.0 - (p.userData.age / p.userData.maxAge);
+                for(let j=0; j < posArr.length / 3; j++) {
+                    posArr[j*3] += v[j*3] * dt; posArr[j*3+1] += v[j*3+1] * dt; v[j*3+1] -= 25 * dt; posArr[j*3+2] += v[j*3+2] * dt;
+                }
+                p.geometry.attributes.position.needsUpdate = true;
+                if(p.userData.age >= p.userData.maxAge) {
+                    scene.remove(p); particles.splice(i, 1);
+                }
+            }
+        }
+
+        function initMap() {
+            defenders.forEach(d => scene.remove(d)); pitchSegments.forEach(p => scene.remove(p)); stadiumSegments.forEach(s => scene.remove(s)); particles.forEach(p => scene.remove(p));
+            defenders = []; pitchSegments = []; stadiumSegments = []; goalGlows = []; particles = [];
+            for (let i = 0; i < 8; i++) { createPitchSegment(-i * 10); createStadiumSegment(-i * 20); }
+            for (let i = 0; i < 5; i++) { spawnDefenderWallRow(-25 - (i * DEFENDER_SPACING)); }
+        }
+
+        function onTouchStart(e) { const touch = e.touches ? e.touches[0] : e; touchStartX = touch.clientX; touchStartY = touch.clientY; }
+        function onTouchEnd(e) {
+            if (gameState !== 'PLAYING') return;
+            const touch = e.changedTouches ? e.changedTouches[0] : e;
+            const diffX = touch.clientX - touchStartX; const diffY = touch.clientY - touchStartY;
+            if (Math.abs(diffX) > SWIPE_THRESHOLD || Math.abs(diffY) > SWIPE_THRESHOLD) {
+                let oldLane = currentLane;
+                if (Math.abs(diffX) > Math.abs(diffY)) { currentLane = diffX > 0 ? Math.min(1, currentLane + 1) : Math.max(-1, currentLane - 1); }
+                else { currentLane = 0; }
+                if(oldLane !== currentLane) playSound('swipe');
+            }
+        }
+
+        window.addEventListener('touchstart', onTouchStart, { passive: true }); window.addEventListener('touchend', onTouchEnd, { passive: true });
+        window.addEventListener('mousedown', onTouchStart); window.addEventListener('mouseup', onTouchEnd);
+        document.getElementById('start-btn').addEventListener('click', startGame); document.getElementById('restart-btn').addEventListener('click', startGame);
+
+        function updateEnergyUI() {
+            const barFill = document.getElementById('energy-fill');
+            if (isGoldRush) {
+                const pct = (goldRushTimer / RUSH_DURATION) * 100;
+                barFill.style.width = `${pct}%`;
+            } else {
+                // Scaled tracking bar logic dynamically tied to current scale requirement
+                const pct = (rushGoalCounter / currentRushTarget) * 100;
+                barFill.style.width = `${pct}%`;
+            }
+        }
+
+        function startGame() {
+            playSound('swipe'); goals = 0; speedMultiplier = 1; currentLane = 0; ballPos.set(0, ballRadius, 0);
+            isGoldRush = false; goldRushTimer = 0; rushGoalCounter = 0;
+            currentRushTarget = 10; // Reset requirement on fresh start
+            goldAuraMat.opacity = 0;
+            scene.background = baseFogColor; scene.fog.color = baseFogColor;
+            document.getElementById('score-box').classList.remove('rush-ui');
+            document.getElementById('score').innerText = goals; document.getElementById('highscore').innerText = highscore;
+            document.getElementById('start-screen').classList.add('hidden'); document.getElementById('gameover-screen').classList.add('hidden');
+            updateEnergyUI();
+            initMap(); gameState = 'PLAYING';
+        }
+
+        function triggerGameOver() {
+            gameState = 'GAMEOVER'; shakeDuration = 12; shakeIntensity = 0.35; playSound('gameover');
+            spawnParticles(ballPos, 40, 0xff1744, 0.4, 12);
+            if (goals > highscore) { highscore = goals; localStorage.setItem('wc_high_goals', highscore); }
+            document.getElementById('gameover-screen').classList.remove('hidden');
+        }
+
+        function triggerGoal() {
+            const splash = document.getElementById('goal-splash'); 
+            const splashText = document.getElementById('splash-text');
+            
+            if (!isGoldRush) {
+                rushGoalCounter++;
+            }
+
+            // Milestone system now validates against variable scale factor
+            if (rushGoalCounter >= currentRushTarget && !isGoldRush) {
+                isGoldRush = true;
+                goldRushTimer = RUSH_DURATION;
+                rushGoalCounter = 0; 
+                
+                // Increase next milestone dynamically: 10 -> 15 -> 20 -> 25, and so on.
+                currentRushTarget += 5; 
+                
+                playSound('rush');
+                
+                splashText.innerText = "⚡"; // Display pure lightning, "Goal" text completely avoided
+                splash.classList.add('active', 'rush');
+                document.getElementById('score-box').classList.add('rush-ui');
+            } else {
+                // Normal goal behavior remains unchanged
+                if (!isGoldRush) {
+                    splashText.innerText = "GOAL!";
+                    splash.classList.remove('rush');
+                    splash.classList.add('active');
+                }
+            }
+
+            updateEnergyUI();
+            shakeDuration = 12; shakeIntensity = 0.15; 
+            if(!isGoldRush) playSound('goal');
+            
+            spawnParticles(ballPos, 40, isGoldRush ? 0xffd600 : 0x00e676, 0.4, 12);
+            setTimeout(() => splash.classList.remove('active'), 550);
+        }
+
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate); const dt = Math.min(clock.getDelta(), 0.1); 
+
+            if (gameState === 'PLAYING') {
+                if (isGoldRush) {
+                    goldRushTimer -= dt;
+                    updateEnergyUI();
+                    goldAuraMat.opacity = 0.4 + Math.sin(Date.now() * 0.03) * 0.2;
+                    
+                    scene.background = goldFogColor;
+                    scene.fog.color = goldFogColor;
+
+                    if (goldRushTimer <= 0) {
+                        isGoldRush = false;
+                        goldAuraMat.opacity = 0;
+                        scene.background = baseFogColor;
+                        scene.fog.color = baseFogColor;
+                        document.getElementById('score-box').classList.remove('rush-ui');
+                        updateEnergyUI();
+                    }
+                }
+
+                const targetX = currentLane * LANE_WIDTH;
+                ballPos.x += (targetX - ballPos.x) * 20 * dt; 
+                
+                const baseSpeed = FORWARD_SPEED_START * speedMultiplier;
+                const forwardSpeed = isGoldRush ? baseSpeed * 1.75 : baseSpeed;
+                
+                ballPos.z -= forwardSpeed * dt; ballMesh.position.copy(ballPos);
+                ballMesh.rotation.x -= (forwardSpeed / ballRadius) * dt;
+
+                ballShadow.position.set(ballPos.x, 0.02, ballPos.z);
+
+                trailTimer += dt;
+                if(trailTimer > 0.015) {
+                    if (isGoldRush) {
+                        spawnParticles(new THREE.Vector3(ballPos.x + (Math.random()-0.5)*0.3, 0.2, ballPos.z + 0.2), 2, 0xffd600, 0.25, 3);
+                    } else {
+                        spawnParticles(new THREE.Vector3(ballPos.x, 0.1, ballPos.z + 0.3), 1, 0x144d18, 0.15, 1);
+                    }
+                    trailTimer = 0;
+                }
+
+                defenders.forEach(row => {
+                    if (Math.abs(ballPos.z - row.position.z) < 1.0) {
+                        row.children.forEach(def => {
+                            if (def.userData.isWallBlock && !def.userData.shattered) { 
+                                const blockLeftX = def.position.x - (LANE_WIDTH * 0.5); const blockRightX = def.position.x + (LANE_WIDTH * 0.5);
+                                if (ballPos.x + ballRadius > blockLeftX && ballPos.x - ballRadius < blockRightX) {
+                                    if (isGoldRush) {
+                                        def.userData.shattered = true;
+                                        def.visible = false;
+                                        playSound('smash');
+                                        shakeDuration = 8; shakeIntensity = 0.25;
+                                        spawnParticles(def.position.clone().setZ(row.position.z), 25, 0xffd600, 0.35, 9);
+                                    } else {
+                                        triggerGameOver();
+                                    }
+                                }
+                            }
+                        });
+                    }
+                    if (!row.userData.passed && ballPos.z < row.position.z - 1.6) {
+                        row.userData.passed = true; goals++; document.getElementById('score').innerText = goals;
+                        triggerGoal(); 
+                        speedMultiplier += SPEED_INCREMENT * 0.02; 
+                    }
+                });
+
+                pitchSegments.forEach(seg => { if (ballPos.z < seg.position.z - 20) seg.position.z -= 80; });
+                stadiumSegments.forEach(seg => { if (ballPos.z < seg.position.z - 40) seg.position.z -= 160; });
+                if (defenders.length > 0 && ballPos.z < defenders[0].position.z - 18) {
+                    const oldRow = defenders.shift(); scene.remove(oldRow);
+                    spawnDefenderWallRow(defenders[defenders.length - 1].position.z - DEFENDER_SPACING);
+                }
+                goalGlows.forEach(glow => glow.material.opacity = 0.2 + Math.sin(Date.now() * 0.02) * 0.1);
+            }
+
+            updateParticles(dt);
+            
+            const camZDist = isGoldRush ? 9.8 : 8.5;
+            camera.position.set(ballPos.x * 0.35, 5.8, ballPos.z + camZDist); 
+            camera.lookAt(new THREE.Vector3(ballPos.x * 0.5, 0.8, ballPos.z - 4));
+
+            if (shakeDuration > 0) {
+                camera.position.x += (Math.random() - 0.5) * shakeIntensity;
+                camera.position.y += (Math.random() - 0.5) * shakeIntensity;
+                shakeDuration--;
+            }
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        initMap(); renderer.render(scene, camera); animate();
+    </script>
+</body>
+</html>
