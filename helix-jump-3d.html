@@ -1,0 +1,1000 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Helix Drop</title>
+    <style>
+        :root {
+            --clr-bg:      #0d0d1a;
+            --clr-card:    rgba(10,10,28,0.97);
+            --clr-border:  rgba(255,255,255,0.08);
+            --clr-text:    #e8e8f0;
+            --clr-muted:   #7878a0;
+            --clr-accent:  #7c6eff;
+            --clr-accent2: #ff6b9d;
+            --clr-success: #38ef7d;
+            --clr-gold:    #ffd600;
+        }
+        *, *::before, *::after {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+            margin: 0; padding: 0;
+        }
+        html, body {
+            width: 100%; height: 100%;
+            overflow: hidden;
+            background: var(--clr-bg);
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            color: var(--clr-text);
+        }
+        #canvas-container { position: absolute; inset: 0; z-index: 1; }
+
+        /* HUD */
+        #hud {
+            position: absolute; top: 0; left: 0; right: 0;
+            z-index: 20;
+            display: flex; justify-content: space-between; align-items: flex-start;
+            padding: 18px 20px;
+            pointer-events: none;
+        }
+        .hud-pill {
+            background: rgba(255,255,255,0.06);
+            border: 1px solid var(--clr-border);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 16px;
+            padding: 10px 20px; min-width: 80px; text-align: center;
+        }
+        .hud-label { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--clr-muted); margin-bottom: 2px; }
+        .hud-value { font-size: 26px; font-weight: 900; line-height: 1; letter-spacing: -1px; }
+        #hud-score .hud-value { color: var(--clr-accent); }
+        #hud-best  .hud-value { color: var(--clr-gold); }
+        #hud-floor .hud-value { color: var(--clr-success); }
+
+        /* Combo */
+        #combo-splash {
+            position: absolute; top: 22%; left: 50%;
+            transform: translateX(-50%) scale(0.5);
+            font-size: 32px; font-weight: 900; letter-spacing: 2px;
+            background: linear-gradient(135deg, var(--clr-gold), #ff9800);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 0 16px rgba(255,214,0,0.6));
+            opacity: 0; pointer-events: none; z-index: 25;
+            transition: opacity 0.15s ease, transform 0.25s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        #combo-splash.show { opacity: 1; transform: translateX(-50%) scale(1.1); }
+
+        /* Progress bar */
+        #floor-bar {
+            position: absolute; right: 18px; top: 50%; transform: translateY(-50%);
+            z-index: 20; pointer-events: none;
+            display: flex; flex-direction: column; align-items: center; gap: 4px;
+        }
+        #floor-bar-inner {
+            width: 6px; height: 160px;
+            background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; position: relative;
+        }
+        #floor-bar-fill {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            background: linear-gradient(to top, var(--clr-accent), var(--clr-accent2));
+            border-radius: 3px; transition: height 0.3s ease; height: 0%;
+        }
+        .floor-bar-label {
+            font-size: 9px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase;
+            color: var(--clr-muted); writing-mode: vertical-rl; text-orientation: mixed; margin-top: 6px;
+        }
+
+        /* Overlay screens */
+        .screen {
+            position: absolute; inset: 0; z-index: 30;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 20px; pointer-events: none; opacity: 0;
+            transition: opacity 0.35s ease;
+        }
+        .screen.visible { pointer-events: auto; opacity: 1; }
+        .screen::before {
+            content: ''; position: absolute; inset: 0;
+            background: rgba(5,5,18,0.78);
+            backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+        }
+        .card {
+            position: relative; z-index: 1;
+            background: var(--clr-card);
+            border: 1px solid var(--clr-border); border-radius: 28px;
+            padding: 44px 36px 36px; width: 100%; max-width: 340px; text-align: center;
+            box-shadow: 0 24px 80px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.06);
+            transform: translateY(20px) scale(0.96);
+            transition: transform 0.4s cubic-bezier(0.34,1.56,0.64,1);
+        }
+        .screen.visible .card { transform: translateY(0) scale(1); }
+        .card-icon { font-size: 52px; margin-bottom: 12px; display: block; }
+        .card-title { font-size: 30px; font-weight: 900; letter-spacing: -0.5px; margin-bottom: 8px; }
+        .card-title.purple { background: linear-gradient(135deg, var(--clr-accent), var(--clr-accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .card-title.red    { background: linear-gradient(135deg, #ff6b6b, #ff4444); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .card-title.green  { background: linear-gradient(135deg, #11998e, var(--clr-success)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .card-sub { font-size: 14px; line-height: 1.6; color: var(--clr-muted); margin-bottom: 28px; }
+        .card-stats { display: flex; justify-content: center; gap: 24px; margin-bottom: 28px; }
+        .stat-box { display: flex; flex-direction: column; align-items: center; }
+        .stat-box .lbl { font-size: 10px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--clr-muted); margin-bottom: 4px; }
+        .stat-box .val { font-size: 24px; font-weight: 900; }
+        .btn {
+            width: 100%; border: none; outline: none; padding: 16px; border-radius: 14px;
+            font-size: 15px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
+            cursor: pointer; transition: transform 0.1s ease, filter 0.2s ease; margin-top: 8px;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn:hover  { filter: brightness(1.12); }
+        .btn-primary { background: linear-gradient(135deg, var(--clr-accent), #9b59b6); color: #fff; box-shadow: 0 6px 24px rgba(124,110,255,0.45); }
+        .btn-success { background: linear-gradient(135deg, #11998e, var(--clr-success)); color: #fff; box-shadow: 0 6px 24px rgba(56,239,125,0.35); }
+        .btn-danger  { background: linear-gradient(135deg, #c0392b, #e74c3c); color: #fff; box-shadow: 0 6px 24px rgba(231,76,60,0.4); }
+
+        /* Score pop */
+        .score-pop {
+            position: absolute; left: 50%; font-size: 22px; font-weight: 900;
+            pointer-events: none; z-index: 25; white-space: nowrap;
+            animation: popFade 0.9s ease forwards;
+        }
+        @keyframes popFade {
+            0%   { opacity:1; transform:translateX(-50%) translateY(0) scale(1); }
+            80%  { opacity:.8; transform:translateX(-50%) translateY(-50px) scale(1.1); }
+            100% { opacity:0; transform:translateX(-50%) translateY(-70px) scale(.9); }
+        }
+
+        /* Vignette & flash */
+        #vignette {
+            position: absolute; inset: 0; z-index: 2; pointer-events: none;
+            background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
+        }
+        #flash { position: absolute; inset: 0; z-index: 28; pointer-events: none; opacity: 0; transition: opacity 0.08s linear; }
+
+        /* Hint */
+        #hint {
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+            font-size: 13px; font-weight: 600; color: var(--clr-muted);
+            pointer-events: none; z-index: 15; white-space: nowrap;
+            opacity: 0; transition: opacity 0.5s ease;
+        }
+        #hint.show { opacity: 1; }
+    </style>
+</head>
+<body>
+
+<div id="canvas-container"></div>
+<div id="vignette"></div>
+<div id="flash"></div>
+
+<div id="hud">
+    <div class="hud-pill" id="hud-score"><div class="hud-label">Score</div><div class="hud-value" id="val-score">0</div></div>
+    <div class="hud-pill" id="hud-floor"><div class="hud-label">Floor</div><div class="hud-value" id="val-floor">1</div></div>
+    <div class="hud-pill" id="hud-best"><div class="hud-label">Best</div><div class="hud-value" id="val-best">0</div></div>
+</div>
+<div id="combo-splash">COMBO ×2</div>
+<div id="floor-bar"><div id="floor-bar-inner"><div id="floor-bar-fill"></div></div><div class="floor-bar-label">Depth</div></div>
+<div id="hint">← Drag to rotate the tower →</div>
+
+<!-- START SCREEN -->
+<div class="screen visible" id="screen-start">
+    <div class="card">
+        <span class="card-icon">🌀</span>
+        <div class="card-title purple">HELIX DROP</div>
+        <p class="card-sub">Rotate the tower so the gap lines up with the ball. Avoid red — one hit ends it all.</p>
+        <button class="btn btn-primary" id="btn-play">Start Playing</button>
+    </div>
+</div>
+
+<!-- GAME OVER SCREEN -->
+<div class="screen" id="screen-over">
+    <div class="card">
+        <span class="card-icon">💥</span>
+        <div class="card-title red">Game Over</div>
+        <p class="card-sub">You hit a danger zone. Each run sharpens your timing.</p>
+        <div class="card-stats">
+            <div class="stat-box"><span class="lbl">Score</span><span class="val" id="over-score" style="color:var(--clr-accent)">0</span></div>
+            <div class="stat-box"><span class="lbl">Best</span><span class="val" id="over-best" style="color:var(--clr-gold)">0</span></div>
+            <div class="stat-box"><span class="lbl">Floor</span><span class="val" id="over-floor" style="color:var(--clr-muted)">—</span></div>
+        </div>
+        <button class="btn btn-danger" id="btn-restart">Try Again</button>
+    </div>
+</div>
+
+<!-- WIN SCREEN -->
+<div class="screen" id="screen-win">
+    <div class="card">
+        <span class="card-icon">🏆</span>
+        <div class="card-title green">Stage Clear!</div>
+        <p class="card-sub">Perfect run. The next stage is waiting.</p>
+        <div class="card-stats">
+            <div class="stat-box"><span class="lbl">Score</span><span class="val" id="win-score" style="color:var(--clr-accent)">0</span></div>
+            <div class="stat-box"><span class="lbl">Level</span><span class="val" id="win-level" style="color:var(--clr-success)">1</span></div>
+        </div>
+        <button class="btn btn-success" id="btn-next">Next Level</button>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+'use strict';
+
+/* ================================================================
+   CONFIG
+================================================================ */
+const CFG = {
+    SEG_COUNT:        12,       // segments per ring
+    FLOOR_COUNT_BASE: 8,        // floors on level 1
+    FLOOR_SPACING:    5.0,      // Y distance between rings
+    SHAFT_RADIUS:     1.6,
+    RING_RADIUS:      4.2,
+    RING_THICKNESS:   0.38,
+
+    // Ball - lives at X=0, Z=0 (inside the helix, on the shaft axis)
+    BALL_RADIUS:      0.32,
+    BALL_START_Y:     2.0,      // starts just above floor 0 (y=0), so it falls immediately
+
+    GRAVITY:         -0.013,
+    BOUNCE_FORCE:     0.30,
+
+    ROT_SPEED:        0.010,
+    ROT_DAMPING:      0.88,
+
+    CAM_OFFSET_Y:     6.5,
+    CAM_Z:            9.5,
+    CAM_LERP:         0.09,
+
+    // Segment type constants
+    GAP:   0,
+    SAFE:  1,
+    DEATH: 2,
+    WIN:   3,
+
+    // Colors
+    COL_BG:          0x0d0d1a,
+    COL_SHAFT:       0x1a1a3a,
+    COL_SAFE:        0x4a6cf7,
+    COL_DEATH:       0xff2233,
+    COL_WIN:         0x38ef7d,
+    COL_BALL:        0xff9f43,
+    COL_STREAK:      0xffd600,
+
+    PTS_GAP: 10,
+};
+
+/* ================================================================
+   UTILS
+================================================================ */
+const clamp  = (v,lo,hi) => Math.max(lo, Math.min(hi, v));
+const lerp   = (a,b,t)   => a + (b-a)*t;
+const rand   = (lo,hi)   => lo + Math.random()*(hi-lo);
+const TAU    = Math.PI * 2;
+
+/* ================================================================
+   STATE
+================================================================ */
+const STATE = { MENU:0, PLAYING:1, OVER:2, WIN:3 };
+
+/* ================================================================
+   FLASH
+================================================================ */
+const flashEl = document.getElementById('flash');
+let flashTimer = null;
+function doFlash(color, dur=200) {
+    flashEl.style.background = color;
+    flashEl.style.opacity = '0.4';
+    clearTimeout(flashTimer);
+    // Trigger reflow so transition re-fires
+    flashEl.offsetHeight;
+    flashEl.style.transition = `opacity ${dur}ms linear`;
+    flashTimer = setTimeout(() => { flashEl.style.opacity = '0'; }, 30);
+}
+
+/* ================================================================
+   SCORE POP
+================================================================ */
+function spawnPop(pts, color='#7c6eff') {
+    const div = document.createElement('div');
+    div.className = 'score-pop';
+    div.textContent = `+${pts}`;
+    div.style.top   = `${window.innerHeight * 0.4}px`;
+    div.style.color = color;
+    document.body.appendChild(div);
+    setTimeout(() => div.remove(), 950);
+}
+
+/* ================================================================
+   TOWER
+   
+   KEY DESIGN DECISION — angles:
+   
+   The ball sits at (0, y, 0) — on the helix axis.
+   For collision we need to know which segment of the rotating ring
+   is currently "under" the ball.
+   
+   We define segment 0 as starting at angle 0 (i.e. along the +X axis
+   in the XZ plane, with segments going counter-clockwise when viewed
+   from above).
+   
+   The tower group rotates by `rotY` around Y.
+   
+   A segment that starts at angle θ_local in local space is at
+   θ_world = θ_local + rotY in world space.
+   
+   The ball is at angle 0 in world space (it doesn't move horizontally).
+   So the ball sits under the segment whose local angle satisfies:
+     θ_local + rotY ≡ 0  (mod 2π)
+     θ_local ≡ -rotY     (mod 2π)
+   
+   Segment index = floor(θ_local / arc)
+   
+   So: segIdx = floor((-rotY mod 2π) / arc)
+   
+   The mesh geometry must match: segment s occupies angles
+   [s*arc, (s+1)*arc) in local space, with NO extra offset.
+================================================================ */
+class Tower {
+    constructor(scene, floorCount, severity) {
+        this.scene      = scene;
+        this.floorCount = floorCount;
+        this.severity   = severity;
+        this.group      = new THREE.Group();
+        this.floors     = [];
+        this.lastPassed = -1;   // index of last floor the ball passed through
+
+        this._buildShaft();
+        this._buildFloors();
+        scene.add(this.group);
+    }
+
+    _buildShaft() {
+        const h   = (this.floorCount + 2) * CFG.FLOOR_SPACING;
+        const geo = new THREE.CylinderGeometry(CFG.SHAFT_RADIUS, CFG.SHAFT_RADIUS, h, 24);
+        const mat = new THREE.MeshStandardMaterial({ color: CFG.COL_SHAFT, roughness: 0.75, metalness: 0.12 });
+        const m   = new THREE.Mesh(geo, mat);
+        m.position.y = -(h/2) + CFG.FLOOR_SPACING;
+        m.receiveShadow = true;
+        this.group.add(m);
+    }
+
+    _buildFloors() {
+        for (let i = 0; i < this.floorCount; i++) {
+            const isFirst = i === 0;
+            const isLast  = i === this.floorCount - 1;
+            const y       = -i * CFG.FLOOR_SPACING;
+            const segs    = this._genSegs(i, isFirst, isLast);
+            const floor   = { y, segments: segs };
+            this.floors.push(floor);
+            this._buildMeshes(floor);
+        }
+    }
+
+    _genSegs(idx, isFirst, isLast) {
+        const segs = new Array(CFG.SEG_COUNT);
+
+        if (isFirst) {
+            // Floor 0: almost entirely safe, with exactly ONE gap cluster
+            // The gap is placed at segment 0 (angle 0 = directly under ball start,
+            // since tower starts at rotation 0). Ball starts directly above it.
+            segs.fill(CFG.SAFE);
+            segs[0] = CFG.GAP;
+            segs[1] = CFG.GAP;
+            segs[CFG.SEG_COUNT - 1] = CFG.GAP; // wrap-around for a 3-wide gap
+            return segs;
+        }
+
+        if (isLast) {
+            segs.fill(CFG.WIN);
+            return segs;
+        }
+
+        // Middle floors: exactly ONE contiguous gap cluster (2-3 segments wide),
+        // rest is a mix of SAFE and DEATH.
+        const gapWidth    = 2 + (Math.random() < 0.35 ? 1 : 0);  // 2 or 3 wide
+        const gapStart    = Math.floor(Math.random() * CFG.SEG_COUNT);
+        const deathProb   = clamp(0.12 + (this.severity - 1) * 0.03, 0, 0.32);
+
+        segs.fill(CFG.SAFE);
+
+        // Place the gap
+        for (let g = 0; g < gapWidth; g++) {
+            segs[(gapStart + g) % CFG.SEG_COUNT] = CFG.GAP;
+        }
+
+        // Randomly sprinkle DEATH on non-gap segments
+        for (let s = 0; s < CFG.SEG_COUNT; s++) {
+            if (segs[s] === CFG.GAP) continue;
+            if (Math.random() < deathProb) segs[s] = CFG.DEATH;
+        }
+
+        return segs;
+    }
+
+    /*
+     * Build arc geometry for each contiguous run of same-type segments.
+     * Angles: segment s → [s * arc, (s+1) * arc) with NO extra offset.
+     * The shape is built in the XZ plane (then rotated via mesh.rotation.x).
+     * In Shape/ExtrudeGeometry space (2D), "X" = our world X, "Y" = our world Z.
+     */
+    _buildMeshes(floor) {
+        const arc = TAU / CFG.SEG_COUNT;
+        let s = 0;
+
+        while (s < CFG.SEG_COUNT) {
+            const type = floor.segments[s];
+            if (type === CFG.GAP) { s++; continue; }
+
+            // Gather contiguous run
+            const runStart = s;
+            while (s < CFG.SEG_COUNT && floor.segments[s] === type) s++;
+            const runEnd = s;
+
+            const a0 = runStart * arc;   // start angle (no offset)
+            const a1 = runEnd   * arc;   // end angle
+
+            const shape = new THREE.Shape();
+            shape.moveTo(Math.cos(a0) * CFG.SHAFT_RADIUS, Math.sin(a0) * CFG.SHAFT_RADIUS);
+            shape.absarc(0, 0, CFG.RING_RADIUS,  a0, a1, false);
+            shape.lineTo(Math.cos(a1) * CFG.SHAFT_RADIUS, Math.sin(a1) * CFG.SHAFT_RADIUS);
+            shape.absarc(0, 0, CFG.SHAFT_RADIUS, a1, a0, true);
+
+            const geo = new THREE.ExtrudeGeometry(shape, {
+                depth: CFG.RING_THICKNESS, steps: 1,
+                bevelEnabled: true, bevelThickness: 0.035, bevelSize: 0.035, bevelSegments: 1,
+            });
+
+            const color = type === CFG.DEATH ? CFG.COL_DEATH : type === CFG.WIN ? CFG.COL_WIN : CFG.COL_SAFE;
+            const mat   = new THREE.MeshStandardMaterial({
+                color,
+                roughness:         0.42,
+                metalness:         0.08,
+                emissive:          type === CFG.DEATH ? 0x330000 : type === CFG.WIN ? 0x002211 : 0x000a30,
+                emissiveIntensity: 0.38,
+            });
+
+            const mesh = new THREE.Mesh(geo, mat);
+            // ExtrudeGeometry extrudes along +Z in 2D, which becomes +Y after the rotation below.
+            // rotating -π/2 around X maps: 2D-X→world-X, 2D-Y→world-Z, extrude-Z→world-Y (up).
+            mesh.rotation.x = -Math.PI / 2;
+            mesh.position.set(0, floor.y, 0);
+            mesh.receiveShadow = true;
+            mesh.castShadow    = true;
+            this.group.add(mesh);
+        }
+    }
+
+    /*
+     * Returns the segment index (0..SEG_COUNT-1) that is currently
+     * directly under the ball, given the tower's current Y rotation.
+     *
+     * Derivation (see design note at top of Tower class):
+     *   segIdx = floor( ((-rotY) mod 2π) / arc )
+     */
+    segmentUnderBall(rotY) {
+        const arc = TAU / CFG.SEG_COUNT;
+        let angle = (-rotY) % TAU;
+        if (angle < 0) angle += TAU;
+        return Math.floor(angle / arc) % CFG.SEG_COUNT;
+    }
+
+    /*
+     * Returns the floor index the ball is currently approaching.
+     * Uses floor() not round() so we only detect a floor when the ball
+     * has actually reached or passed its Y level.
+     */
+    floorIndexAt(ballY) {
+        // floor y[i] = -i * FLOOR_SPACING
+        // ball is "at" floor i when ballY <= y[i]  → i = ceil(-ballY / spacing)
+        // But we want the floor the ball is descending toward: the highest floor
+        // whose Y is <= ballY (i.e. still above the ball or at the ball).
+        const idx = Math.floor(-ballY / CFG.FLOOR_SPACING);
+        return clamp(idx, 0, this.floorCount - 1);
+    }
+
+    remove() {
+        this.scene.remove(this.group);
+    }
+}
+
+/* ================================================================
+   BALL
+================================================================ */
+class Ball {
+    constructor(scene) {
+        this.scene = scene;
+        const geo  = new THREE.SphereGeometry(CFG.BALL_RADIUS, 26, 26);
+        this.mat   = new THREE.MeshStandardMaterial({
+            color: CFG.COL_BALL, roughness: 0.2, metalness: 0.15,
+            emissive: 0x1a0800, emissiveIntensity: 0.25,
+        });
+        this.mesh = new THREE.Mesh(geo, this.mat);
+        this.mesh.castShadow = true;
+
+        // Soft glow halo
+        const glowGeo  = new THREE.SphereGeometry(CFG.BALL_RADIUS * 1.7, 14, 14);
+        this.glowMat   = new THREE.MeshBasicMaterial({ color: CFG.COL_BALL, transparent: true, opacity: 0.12, depthWrite: false });
+        this.glowMesh  = new THREE.Mesh(glowGeo, this.glowMat);
+        this.mesh.add(this.glowMesh);
+
+        // Motion trail (small ghost spheres behind the ball)
+        this.TRAIL_LEN   = 10;
+        this.trailPos    = [];
+        this.trailMeshes = [];
+        for (let i = 0; i < this.TRAIL_LEN; i++) {
+            const f   = (this.TRAIL_LEN - i) / this.TRAIL_LEN;
+            const tg  = new THREE.SphereGeometry(CFG.BALL_RADIUS * 0.65 * f, 8, 8);
+            const tm  = new THREE.MeshBasicMaterial({ color: CFG.COL_BALL, transparent: true, opacity: 0, depthWrite: false });
+            const tmesh = new THREE.Mesh(tg, tm);
+            scene.add(tmesh);
+            this.trailMeshes.push(tmesh);
+        }
+
+        scene.add(this.mesh);
+        this.reset();
+    }
+
+    reset() {
+        // Ball lives on the helix axis (X=0, Z=0), just above floor 0 (y=0)
+        this.mesh.position.set(0, CFG.BALL_START_Y, 0);
+        this.prevY  = CFG.BALL_START_Y;
+        this.vel    = 0;
+        this.combo  = 0;
+        this.mesh.scale.set(1, 1, 1);
+        this._setColor(CFG.COL_BALL);
+        this.trailPos = [];
+        for (const tm of this.trailMeshes) tm.material.opacity = 0;
+    }
+
+    bounce() {
+        this.vel = CFG.BOUNCE_FORCE;
+        this.mesh.scale.set(1.4, 0.58, 1.4);  // squash on impact
+    }
+
+    resetCombo() {
+        this.combo = 0;
+        this._setColor(CFG.COL_BALL);
+    }
+
+    _setColor(hex) {
+        this.mat.color.setHex(hex);
+        this.glowMat.color.setHex(hex);
+        this.mat.emissive.setHex(hex === CFG.COL_BALL ? 0x1a0800 : 0x201000);
+    }
+
+    update() {
+        this.prevY            = this.mesh.position.y;
+        this.vel             += CFG.GRAVITY;
+        this.mesh.position.y += this.vel;
+
+        // Restore squash scale smoothly
+        const sx = lerp(this.mesh.scale.x, 1.0, 0.16);
+        const sy = lerp(this.mesh.scale.y, 1.0, 0.16);
+        this.mesh.scale.set(sx, sy, sx);
+
+        // Stretch while falling fast
+        if (this.vel < -0.18) {
+            this.mesh.scale.y = lerp(this.mesh.scale.y, 1.22, 0.10);
+            this.mesh.scale.x = lerp(this.mesh.scale.x, 0.86, 0.10);
+            this.mesh.scale.z = this.mesh.scale.x;
+        }
+
+        // Combo color
+        this._setColor(this.combo >= 2 ? CFG.COL_STREAK : CFG.COL_BALL);
+        this.glowMat.opacity = this.combo >= 2 ? 0.22 : 0.12;
+
+        // Glow pulse
+        const pulse = 1.4 + Math.sin(Date.now() * 0.007) * 0.14;
+        this.glowMesh.scale.setScalar(pulse);
+
+        // Update trail
+        this.trailPos.unshift(this.mesh.position.clone());
+        if (this.trailPos.length > this.TRAIL_LEN) this.trailPos.pop();
+
+        for (let i = 0; i < this.trailMeshes.length; i++) {
+            const tm = this.trailMeshes[i];
+            if (this.trailPos[i]) {
+                tm.position.copy(this.trailPos[i]);
+                const f = (1 - i / this.TRAIL_LEN);
+                tm.material.opacity = Math.max(0, f * (this.combo >= 2 ? 0.38 : 0.18));
+                tm.material.color.setHex(this.combo >= 2 ? CFG.COL_STREAK : CFG.COL_BALL);
+            } else {
+                tm.material.opacity = 0;
+            }
+        }
+    }
+
+    destroy() {
+        this.scene.remove(this.mesh);
+        for (const tm of this.trailMeshes) this.scene.remove(tm);
+    }
+}
+
+/* ================================================================
+   PARTICLES
+================================================================ */
+class Particles {
+    constructor(scene) {
+        this.scene = scene;
+        this.pool  = [];
+    }
+
+    spawn(pos, color, count=10) {
+        for (let i = 0; i < count; i++) {
+            const geo   = new THREE.SphereGeometry(rand(0.05, 0.13), 6, 6);
+            const mat   = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1 });
+            const mesh  = new THREE.Mesh(geo, mat);
+            mesh.position.copy(pos);
+            const ang = Math.random() * TAU;
+            const sp  = rand(0.04, 0.11);
+            this.pool.push({ mesh, vx: Math.cos(ang)*sp, vy: rand(0.05,0.14), vz: Math.sin(ang)*sp, life: 1, decay: rand(0.03,0.06) });
+            this.scene.add(mesh);
+        }
+    }
+
+    update() {
+        for (let i = this.pool.length - 1; i >= 0; i--) {
+            const p = this.pool[i];
+            p.mesh.position.x += p.vx;
+            p.mesh.position.y += p.vy;
+            p.mesh.position.z += p.vz;
+            p.vy  -= 0.006;
+            p.life -= p.decay;
+            p.mesh.material.opacity = Math.max(0, p.life);
+            p.mesh.scale.setScalar(Math.max(0, p.life));
+            if (p.life <= 0) {
+                this.scene.remove(p.mesh);
+                p.mesh.geometry.dispose();
+                p.mesh.material.dispose();
+                this.pool.splice(i, 1);
+            }
+        }
+    }
+
+    clear() {
+        for (const p of this.pool) { this.scene.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.dispose(); }
+        this.pool = [];
+    }
+}
+
+/* ================================================================
+   UI
+================================================================ */
+class UI {
+    constructor() {
+        this.scoreEl  = document.getElementById('val-score');
+        this.floorEl  = document.getElementById('val-floor');
+        this.bestEl   = document.getElementById('val-best');
+        this.comboEl  = document.getElementById('combo-splash');
+        this.barFill  = document.getElementById('floor-bar-fill');
+        this.hintEl   = document.getElementById('hint');
+        this._cTimer  = null;
+        this._screens = {
+            [STATE.MENU]:    document.getElementById('screen-start'),
+            [STATE.OVER]:    document.getElementById('screen-over'),
+            [STATE.WIN]:     document.getElementById('screen-win'),
+        };
+    }
+    show(state) {
+        for (const [k, el] of Object.entries(this._screens))
+            el.classList.toggle('visible', Number(k) === state);
+    }
+    hideAll() { for (const el of Object.values(this._screens)) el.classList.remove('visible'); }
+    setScore(n) { this.scoreEl.textContent = n; }
+    setFloor(n) { this.floorEl.textContent = n; }
+    setBest(n)  { this.bestEl.textContent  = n; }
+    setProgress(pct) { this.barFill.style.height = `${clamp(pct*100,0,100)}%`; }
+    showCombo(x) {
+        this.comboEl.textContent = x >= 5 ? `MEGA ×${x}` : `COMBO ×${x}`;
+        this.comboEl.classList.add('show');
+        clearTimeout(this._cTimer);
+        this._cTimer = setTimeout(() => this.comboEl.classList.remove('show'), 900);
+    }
+    hint(show) { this.hintEl.classList.toggle('show', show); }
+    setOverStats(s,b,f) {
+        document.getElementById('over-score').textContent = s;
+        document.getElementById('over-best').textContent  = b;
+        document.getElementById('over-floor').textContent = f;
+    }
+    setWinStats(s,l) {
+        document.getElementById('win-score').textContent = s;
+        document.getElementById('win-level').textContent = l;
+    }
+}
+
+/* ================================================================
+   INPUT
+================================================================ */
+class Input {
+    constructor() {
+        this.active = false;
+        this.prevX  = 0;
+        this.rotVel = 0;
+        window.addEventListener('mousedown',  e => this._s(e.clientX));
+        window.addEventListener('mousemove',  e => this._m(e.clientX));
+        window.addEventListener('mouseup',    ()=> this._e());
+        window.addEventListener('touchstart', e => { if(e.touches.length) this._s(e.touches[0].clientX); }, {passive:true});
+        window.addEventListener('touchmove',  e => { if(e.touches.length) this._m(e.touches[0].clientX); }, {passive:true});
+        window.addEventListener('touchend',   ()=> this._e());
+    }
+    _s(x) { this.active = true;  this.prevX = x; }
+    _m(x) {
+        if (!this.active) return;
+        this.rotVel = (x - this.prevX) * CFG.ROT_SPEED;
+        this.prevX  = x;
+    }
+    _e() { this.active = false; }
+    update() { if (!this.active) this.rotVel *= CFG.ROT_DAMPING; }
+}
+
+/* ================================================================
+   STARFIELD
+================================================================ */
+function makeStars(scene) {
+    const n = 300, pos = new Float32Array(n * 3);
+    for (let i = 0; i < n; i++) {
+        pos[i*3]   = rand(-40, 40);
+        pos[i*3+1] = rand(-90, 10);
+        pos[i*3+2] = rand(-35, -6);
+    }
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xaaaacc, size: 0.13, transparent: true, opacity: 0.5 })));
+}
+
+/* ================================================================
+   GAME
+================================================================ */
+class Game {
+    constructor() {
+        this.state     = STATE.MENU;
+        this.score     = 0;
+        this.highScore = parseInt(localStorage.getItem('helixdrop_hi') || '0', 10);
+        this.level     = 1;
+        this.floorIdx  = 0;
+
+        this._initRenderer();
+        this._initScene();
+        this._initLights();
+
+        this.ball   = new Ball(this.scene);
+        this.tower  = new Tower(this.scene, this._numFloors(), 1);
+        this.parts  = new Particles(this.scene);
+        this.ui     = new UI();
+        this.input  = new Input();
+
+        makeStars(this.scene);
+
+        this.ui.setBest(this.highScore);
+
+        document.getElementById('btn-play').addEventListener('click',    () => this._startGame());
+        document.getElementById('btn-restart').addEventListener('click', () => this._restartGame());
+        document.getElementById('btn-next').addEventListener('click',    () => this._nextLevel());
+
+        window.addEventListener('resize', () => this._onResize());
+        setTimeout(() => this.ui.hint(true), 700);
+
+        this._animate();
+    }
+
+    _initRenderer() {
+        this.renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+        this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+        this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type    = THREE.PCFSoftShadowMap;
+        document.getElementById('canvas-container').appendChild(this.renderer.domElement);
+    }
+
+    _initScene() {
+        this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(CFG.COL_BG);
+        this.scene.fog         = new THREE.FogExp2(CFG.COL_BG, 0.013);
+
+        this.camera = new THREE.PerspectiveCamera(58, window.innerWidth / window.innerHeight, 0.1, 500);
+        // Camera sits above and slightly behind the ball (+Z side).
+        // Ball is at (0, y, 0), so camera at (0, y+offset, Z) looks straight at it.
+        this.camera.position.set(0, CFG.BALL_START_Y + CFG.CAM_OFFSET_Y, CFG.CAM_Z);
+        this.camera.lookAt(0, CFG.BALL_START_Y, 0);
+    }
+
+    _initLights() {
+        this.scene.add(new THREE.AmbientLight(0x8888bb, 0.72));
+
+        this.keyLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        this.keyLight.position.set(8, 20, 10);
+        this.keyLight.castShadow = true;
+        this.keyLight.shadow.mapSize.set(1024, 1024);
+        Object.assign(this.keyLight.shadow.camera, { near:0.5, far:120, left:-18, right:18, top:18, bottom:-18 });
+        this.scene.add(this.keyLight);
+
+        const fill = new THREE.DirectionalLight(0xffe0aa, 0.3);
+        fill.position.set(-8, 8, 5);
+        this.scene.add(fill);
+
+        const rim = new THREE.DirectionalLight(0x8899ff, 0.22);
+        rim.position.set(0, -5, -10);
+        this.scene.add(rim);
+    }
+
+    _numFloors() { return CFG.FLOOR_COUNT_BASE + (this.level - 1) * 2; }
+
+    _rebuild() {
+        this.tower.remove();
+        this.parts.clear();
+        this.ball.reset();
+        this.tower  = new Tower(this.scene, this._numFloors(), this.level);
+        this.input.rotVel              = 0;
+        this.tower.group.rotation.y    = 0;
+        this.floorIdx = 0;
+        this._updateHUD();
+    }
+
+    _startGame() {
+        this.score = 0; this.level = 1;
+        this._rebuild();
+        this.state = STATE.PLAYING;
+        this.ui.hideAll();
+        this.ui.hint(false);
+    }
+
+    _restartGame() {
+        this.score = 0; this.level = 1;
+        this._rebuild();
+        this.state = STATE.PLAYING;
+        this.ui.hideAll();
+    }
+
+    _nextLevel() {
+        this.level++;
+        this._rebuild();
+        this.state = STATE.PLAYING;
+        this.ui.hideAll();
+    }
+
+    _gameOver() {
+        if (this.state !== STATE.PLAYING) return;
+        this.state = STATE.OVER;
+        doFlash('#ff2244', 400);
+        this.parts.spawn(this.ball.mesh.position, CFG.COL_DEATH, 18);
+        if (this.score > this.highScore) { this.highScore = this.score; localStorage.setItem('helixdrop_hi', this.highScore); }
+        this.ui.setOverStats(this.score, this.highScore, this.floorIdx + 1);
+        this.ui.setBest(this.highScore);
+        setTimeout(() => this.ui.show(STATE.OVER), 500);
+    }
+
+    _win() {
+        if (this.state !== STATE.PLAYING) return;
+        this.state = STATE.WIN;
+        doFlash('#38ef7d', 350);
+        this.parts.spawn(this.ball.mesh.position, CFG.COL_WIN, 24);
+        if (this.score > this.highScore) { this.highScore = this.score; localStorage.setItem('helixdrop_hi', this.highScore); }
+        this.ui.setWinStats(this.score, this.level);
+        this.ui.setBest(this.highScore);
+        setTimeout(() => this.ui.show(STATE.WIN), 400);
+    }
+
+    _updateHUD() {
+        this.ui.setScore(this.score);
+        this.ui.setFloor(this.floorIdx + 1);
+        this.ui.setBest(this.highScore);
+        this.ui.setProgress(this.floorIdx / Math.max(1, this.tower.floorCount - 2));
+    }
+
+    /* ── Collision ── */
+    _checkCollision() {
+        const ball   = this.ball;
+        const bY     = ball.mesh.position.y;
+        const prevY  = ball.prevY;
+        const bR     = CFG.BALL_RADIUS;
+
+        // Only care when falling
+        if (ball.vel >= 0) return;
+
+        // Which floor is directly below the ball right now?
+        const fi = this.tower.floorIndexAt(bY);
+        const fd = this.tower.floors[fi];
+        if (!fd) return;
+
+        /*
+         * TOP surface of the platform slab.
+         * The mesh is at fd.y with rotation.x = -π/2.
+         * ExtrudeGeometry extrudes along local +Z, which after -π/2 rotation
+         * becomes world +Y. So the slab occupies world Y: [fd.y, fd.y + RING_THICKNESS].
+         * Top surface = fd.y + RING_THICKNESS.
+         */
+        const surfY = fd.y + CFG.RING_THICKNESS;
+
+        // Did the ball's bottom edge cross the surface this frame?
+        // (prevY - bR) was above surfY last frame, (bY - bR) is at or below now.
+        const crossed = (prevY - bR) >= surfY && (bY - bR) < surfY;
+        if (!crossed) return;
+
+        // Which segment is under the ball?
+        const segIdx = this.tower.segmentUnderBall(this.tower.group.rotation.y);
+        const type   = fd.segments[segIdx];
+
+        if (type === CFG.GAP) {
+            // Pass through — score if new floor
+            if (fi > this.tower.lastPassed) {
+                this.tower.lastPassed = fi;
+                this._scorePass(fi);
+            }
+            return;
+        }
+
+        if (type === CFG.WIN) {
+            this._win();
+            return;
+        }
+
+        if (type === CFG.DEATH) {
+            this._gameOver();
+            return;
+        }
+
+        // SAFE — bounce
+        ball.mesh.position.y = surfY + bR + 0.005;
+        ball.bounce();
+        ball.resetCombo();
+        doFlash('#4a6cf7', 130);
+        this.parts.spawn(new THREE.Vector3(0, surfY, 0), CFG.COL_SAFE, 8);
+        if (fi > this.floorIdx) { this.floorIdx = fi; this._updateHUD(); }
+    }
+
+    _scorePass(fi) {
+        this.ball.combo++;
+        const pts = CFG.PTS_GAP * (this.ball.combo >= 2 ? this.ball.combo : 1);
+        this.score += pts;
+        if (this.score > this.highScore) { this.highScore = this.score; localStorage.setItem('helixdrop_hi', this.highScore); }
+        if (this.ball.combo >= 2) this.ui.showCombo(this.ball.combo);
+        spawnPop(pts, this.ball.combo >= 2 ? '#ffd600' : '#7c6eff');
+        if (fi > this.floorIdx) this.floorIdx = fi;
+        this._updateHUD();
+    }
+
+    _onResize() {
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+        this.renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    /* ── Loop ── */
+    _animate() {
+        requestAnimationFrame(() => this._animate());
+
+        if (this.state === STATE.PLAYING) {
+            this.input.update();
+            this.tower.group.rotation.y += this.input.rotVel;
+
+            this.ball.update();
+            this.parts.update();
+            this._checkCollision();
+
+            // Safety net: fell below the last floor
+            const lastFloor = this.tower.floors[this.tower.floorCount - 1];
+            if (lastFloor && this.ball.mesh.position.y < lastFloor.y - CFG.FLOOR_SPACING * 2) {
+                this._gameOver();
+            }
+
+            // Camera follows ball downward
+            const targetY = this.ball.mesh.position.y + CFG.CAM_OFFSET_Y;
+            this.camera.position.y = lerp(this.camera.position.y, targetY, CFG.CAM_LERP);
+            this.camera.lookAt(0, this.ball.mesh.position.y - 1.0, 0);
+            this.keyLight.position.y = this.camera.position.y + 18;
+
+        } else {
+            // Idle tower spin on menu/over/win screens
+            if (this.tower) this.tower.group.rotation.y += 0.004;
+            this.parts.update();
+        }
+
+        this.renderer.render(this.scene, this.camera);
+    }
+}
+
+/* ================================================================
+   BOOT
+================================================================ */
+const game = new Game();
+</script>
+</body>
+</html>
