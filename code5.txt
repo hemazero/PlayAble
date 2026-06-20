@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Cozy Pottery: Smooth Re-Scale</title>
+    <style>
+        :root { 
+            --bg: #1e1b18; 
+            --text: #e8ded1; 
+            --panel: rgba(43, 38, 35, 0.9); 
+            --accent: #d38b6b;
+        }
+        * { box-sizing: border-box; user-select: none; -webkit-user-select: none; margin: 0; padding: 0; }
+        body, html { width: 100%; height: 100%; overflow: hidden; background: var(--bg); font-family: sans-serif; color: var(--text); }
+        #canvas-container { width: 100%; height: 100%; position: absolute; z-index: 1; }
+        
+        .ui { 
+            position: absolute; 
+            z-index: 10; 
+            pointer-events: none; 
+            width: 100%; 
+            height: 100%; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between; 
+            padding: 15px; 
+        }
+        .ui * { pointer-events: auto; }
+        
+        header { 
+            text-align: left; 
+            margin-top: 5px; 
+            background: var(--panel); 
+            padding: 12px; 
+            border-radius: 16px;
+            border: 1px solid rgba(255,255,255,0.05);
+            max-width: 220px;
+            margin-left: 5px;
+        }
+        h1 { font-size: 1.1rem; font-weight: 400; color: var(--text); }
+        
+        #target-panel { 
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex; 
+            flex-direction: column;
+            align-items: center; 
+            gap: 4px; 
+            background: var(--panel); 
+            padding: 8px 12px; 
+            border-radius: 14px; 
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        #target-svg { width: 55px; height: 75px; }
+        
+        #controls { width: 100%; max-width: 360px; margin: 0 auto; background: var(--panel); border-radius: 20px; padding: 15px; display: flex; flex-direction: column; align-items: center; gap: 10px; border: 1px solid rgba(255,255,255,0.05); }
+        .btn { background: var(--accent); color: #fff; border: none; padding: 10px 24px; font-size: 0.95rem; border-radius: 20px; cursor: pointer; font-weight: bold; }
+        .colors { display: none; gap: 8px; }
+        .dot { width: 28px; height: 28px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; }
+        .dot.active { border-color: var(--text); }
+        #score { display: none; font-size: 1.3rem; font-weight: bold; color: var(--accent); }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div class="ui">
+        <header id="top-header">
+            <h1 id="lvl-lbl">Level 1 / 100</h1>
+            <p style="font-size:0.7rem; color: #a89f91; margin-top:2px;">Drag left/right to sculpt seamlessly</p>
+        </header>
+
+        <div id="target-panel">
+            <span style="font-size:0.6rem; font-weight:bold; letter-spacing:1px; opacity: 0.7;">TARGET</span>
+            <svg id="target-svg"><path id="target-path" fill="rgba(211,139,107,0.15)" stroke="#d38b6b" stroke-width="2.5" stroke-dasharray="2 2"/></svg>
+        </div>
+        
+        <div id="controls">
+            <div id="score"></div>
+            <button id="btn" class="btn">Finish Shaping</button>
+            <div id="colors" class="colors"></div>
+        </div>
+    </div>
+
+    <script>
+        let phase = 'shape', lvl = 1, currentRadii = [], targetRadii = [];
+        // Adjusted dimensions: clear workspace footprint with comfortable sizing
+        const SEG_Y = 24, SEG_X = 32, H = 2.6, BASE_R = 1.05; 
+        const colors = ['#d38b6b', '#a2b199', '#dfbc8c', '#d6a3a1', '#8fa9b0'];
+        let scene, camera, renderer, clay, geo, currentSelectedColor = colors[0];
+        
+        function generateTargetProfile(level) {
+            targetRadii = [];
+            let freqModifier = 1 + (level % 3) * 0.4;
+            
+            for (let i = 0; i <= SEG_Y; i++) {
+                let pct = i / SEG_Y;
+                let r = BASE_R;
+
+                if (level % 5 === 1) {
+                    r *= (0.45 + Math.pow(pct, 2) * 0.6 + Math.sin(pct * Math.PI) * 0.2);
+                } else if (level % 5 === 2) {
+                    r *= (0.8 + Math.sin(pct * Math.PI * freqModifier) * 0.2);
+                } else if (level % 5 === 3) {
+                    r *= (1.1 - Math.sqrt(pct) * 0.5 + Math.cos(pct * 1.5) * 0.08);
+                } else if (level % 5 === 4) {
+                    r *= (0.6 + (i % 5) * 0.04 + pct * 0.35);
+                } else {
+                    r *= (0.75 + Math.sin(pct * Math.PI) * 0.35);
+                }
+                targetRadii.push(Math.max(0.35, Math.min(1.4, r)));
+            }
+        }
+
+        let audioCtx = null;
+        function playSound(type) {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
+
+                if (type === 'sculpt') {
+                    let osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+                    osc.type = 'triangle'; osc.frequency.setValueAtTime(75 + Math.random() * 30, audioCtx.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(35, audioCtx.currentTime + 0.08);
+                    gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
+                    gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.08);
+                    osc.connect(gain); gain.connect(audioCtx.destination);
+                    osc.start(); osc.stop(audioCtx.currentTime + 0.08);
+                } else if (type === 'win') {
+                    [261.63, 329.63, 392.00, 523.25].forEach((freq, idx) => {
+                        let osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
+                        osc.type = 'sine'; osc.frequency.setValueAtTime(freq, audioCtx.currentTime + idx * 0.05);
+                        gain.gain.setValueAtTime(0.08, audioCtx.currentTime + idx * 0.05);
+                        gain.gain.linearRampToValueAtTime(0, camera.position.z * 0.01 + idx * 0.05);
+                        osc.connect(gain); gain.connect(audioCtx.destination);
+                        osc.start(audioCtx.currentTime + idx * 0.05); osc.stop(audioCtx.currentTime + 0.4 + idx * 0.05);
+                    });
+                }
+            } catch(e) {}
+        }
+
+        function drawSVG() {
+            let p = `M 27 70`;
+            for(let i=0; i<=SEG_Y; i++) p += ` L ${27 + (targetRadii[i]/BASE_R)*14} ${70 - (i/SEG_Y)*65}`;
+            for(let i=SEG_Y; i>=0; i--) p += ` L ${27 - (targetRadii[i]/BASE_R)*14} ${70 - (i/SEG_Y)*65}`;
+            document.getElementById('target-path').setAttribute('d', p + ' Z');
+        }
+
+        function init() {
+            scene = new THREE.Scene(); scene.background = new THREE.Color(0x1e1b18); 
+            camera = new THREE.PerspectiveCamera(36, window.innerWidth/window.innerHeight, 0.1, 50);
+            camera.position.set(0, 1.4, 6.4); camera.lookAt(0, -0.2, 0); 
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+            scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+            let dL = new THREE.DirectionalLight(0xffe0cc, 0.85); dL.position.set(4, 6, 4); scene.add(dL);
+            let bL = new THREE.DirectionalLight(0x7c9bb0, 0.35); bL.position.set(-4, -2, -2); scene.add(bL);
+
+            let w = new THREE.Mesh(new THREE.CylinderGeometry(1.4, 1.5, 0.12, 24), new THREE.MeshStandardMaterial({color: 0x2b2623, roughness: 0.8}));
+            w.position.y = -H/2 - 0.06; scene.add(w);
+
+            resetLevel();
+            setupEvents();
+            
+            colors.forEach((c, i) => {
+                let d = document.createElement('div'); d.className = `dot ${i===0?'active':''}`; d.style.background = c;
+                d.onclick = () => { 
+                    document.querySelectorAll('.dot').forEach(x=>x.classList.remove('active')); 
+                    d.classList.add('active'); 
+                    currentSelectedColor = c;
+                    clay.material.color.set(c); 
+                };
+                document.getElementById('colors').appendChild(d);
+            });
+
+            animate();
+        }
+
+        function resetLevel() {
+            phase = 'shape';
+            document.getElementById('lvl-lbl').innerText = `Level ${lvl} / 100`;
+            document.getElementById('score').style.display = 'none';
+            document.getElementById('colors').style.display = 'none';
+            document.getElementById('btn').innerText = "Finish Shaping";
+            
+            for (let i = 0; i <= SEG_Y; i++) currentRadii[i] = BASE_R;
+            generateTargetProfile(lvl);
+            drawSVG();
+            buildClay();
+        }
+
+        function buildClay() {
+            if(clay) scene.remove(clay);
+            geo = new THREE.CylinderGeometry(1, 1, H, SEG_X, SEG_Y, true);
+            clay = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: currentSelectedColor, roughness: 0.75, side: THREE.DoubleSide }));
+            scene.add(clay);
+            updateVertices();
+        }
+
+        function updateVertices() {
+            let pos = geo.attributes.position, v = new THREE.Vector3();
+            for (let i = 0; i < pos.count; i++) {
+                v.fromBufferAttribute(pos, i);
+                let rIdx = Math.max(0, Math.min(SEG_Y, Math.round(((v.y + H/2)/H) * SEG_Y)));
+                let ang = Math.atan2(v.z, v.x);
+                pos.setXYZ(i, Math.cos(ang) * currentRadii[rIdx], v.y, Math.sin(ang) * currentRadii[rIdx]);
+            }
+            pos.needsUpdate = true; geo.computeVertexNormals();
+        }
+
+        let drawing = false, lastSoundTime = 0, lastNDC_X = 0;
+        const ray = new THREE.Raycaster(), pV = new THREE.Vector2();
+
+        function setupEvents() {
+            let down = (e) => { 
+                if (e.target.closest('#top-header') || e.target.closest('#controls') || e.target.closest('#target-panel')) return;
+                if(phase==='shape') {
+                    drawing = true;
+                    let t = e.touches ? e.touches[0] : e;
+                    // Track Normalized Device Coordinates instead of raw pixels for precise control
+                    lastNDC_X = (t.clientX / window.innerWidth) * 2 - 1;
+                }
+            };
+            let up = () => drawing = false;
+            let move = (e) => {
+                if(!drawing || phase !== 'shape') return;
+                let t = e.touches ? e.touches[0] : e;
+                
+                if (e.target.closest('#top-header') || e.target.closest('#controls') || e.target.closest('#target-panel')) return;
+
+                let currentNDC_X = (t.clientX / window.innerWidth) * 2 - 1;
+                let deltaX = currentNDC_X - lastNDC_X;
+                lastNDC_X = currentNDC_X;
+
+                pV.x = currentNDC_X; pV.y = -(t.clientY / window.innerHeight) * 2 + 1;
+                ray.setFromCamera(pV, camera);
+                let hits = ray.intersectObject(clay);
+                if(hits.length > 0) {
+                    let rIdx = Math.max(0, Math.min(SEG_Y, Math.round(((hits[0].point.y + H/2)/H) * SEG_Y)));
+                    
+                    // Controlled, predictable dampening calculation based on view space delta
+                    let sideModifier = hits[0].point.x >= 0 ? 1 : -1;
+                    let delta = deltaX * 1.8 * sideModifier; 
+                    
+                    for(let r = -2; r <= 2; r++) {
+                        if(rIdx+r >= 0 && rIdx+r <= SEG_Y) {
+                            currentRadii[rIdx+r] = Math.max(0.25, Math.min(1.5, currentRadii[rIdx+r] + delta * (1 - Math.abs(r)/3)));
+                        }
+                    }
+                    updateVertices();
+
+                    let now = performance.now();
+                    if (now - lastSoundTime > 65) {
+                        playSound('sculpt');
+                        lastSoundTime = now;
+                    }
+                }
+            };
+            window.addEventListener('mousedown', down); window.addEventListener('touchstart', down);
+            window.addEventListener('mouseup', up); window.addEventListener('touchend', up);
+            window.addEventListener('mousemove', move); window.addEventListener('touchmove', move, {passive:false});
+            
+            document.getElementById('btn').onclick = () => {
+                if (phase === 'shape') {
+                    phase = 'paint';
+                    playSound('win');
+                    
+                    let diff = 0;
+                    for (let i = 0; i <= SEG_Y; i++) diff += Math.abs(currentRadii[i] - targetRadii[i]);
+                    let score = Math.round(Math.max(0, 100 * (1 - (diff / (SEG_Y + 1)) / BASE_R)));
+                    
+                    document.getElementById('score').innerText = `${score}% Match!`;
+                    document.getElementById('score').style.display = 'block';
+                    document.getElementById('colors').style.display = 'flex';
+                    document.getElementById('btn').innerText = lvl < 100 ? "Next Level" : "Restart Game";
+                    clay.material.roughness = 0.2;
+                } else {
+                    lvl = lvl < 100 ? lvl + 1 : 1;
+                    resetLevel();
+                }
+            };
+            window.onresize = () => { camera.aspect = window.innerWidth/window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); };
+        }
+
+        function animate() { requestAnimationFrame(animate); if(clay) clay.rotation.y += 0.012; renderer.render(scene, camera); }
+        window.onload = init;
+    </script>
+</body>
+</html>
