@@ -2,804 +2,648 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Subway Dash - Ultimate Board Edition</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Swipe Market 3D: Cloud Edition</title>
     <style>
         :root {
-            --bg-dark: #090a15;
-            --ui-font: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            --bg-base: #0a0d14;
+            --bg-fog: radial-gradient(circle at 50% 50%, #1a2236 0%, #0a0d14 100%);
+            --bg-surface: rgba(22, 27, 38, 0.7);
+            --bg-surface-elevated: rgba(35, 43, 58, 0.85);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --success: #34d399;
+            --danger: #f87171;
+            --card-grad: linear-gradient(135deg, #6366f1 0%, #4338ca 100%);
         }
 
         * {
             box-sizing: border-box;
-            user-select: none;
-            -webkit-user-select: none;
             margin: 0;
             padding: 0;
-            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
         }
 
         body {
-            background-color: var(--bg-dark);
-            font-family: var(--ui-font);
-            color: #ffffff;
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-base);
+            background-image: var(--bg-fog);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             overflow: hidden;
-            width: 100vw;
-            height: 100vh;
+            touch-action: none;
+            padding-bottom: env(safe-area-inset-bottom, 15px);
+        }
+
+        /* Ambient Fog and Vignette Layers */
+        .fog-overlay {
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 50% 30%, transparent 20%, rgba(10, 13, 20, 0.8) 90%);
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        /* Top Display Dashboard */
+        .dashboard {
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+            padding: 30px 20px 10px 20px;
+            z-index: 10;
+            backdrop-filter: blur(4px);
+        }
+
+        .balance-container {
             display: flex;
             justify-content: center;
             align-items: center;
+            gap: 4px;
+            margin-bottom: 4px;
         }
 
-        #game-container {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            max-width: 480px;
-            max-height: 854px;
-            aspect-ratio: 9 / 16;
-            box-shadow: 0 25px 70px rgba(0, 0, 0, 0.8);
-            border-radius: 24px;
-            overflow: hidden;
-            background: #1e272e;
+        #balance {
+            font-size: 3.2rem;
+            font-weight: 900;
+            letter-spacing: -1.5px;
+            background: linear-gradient(to bottom, #ffffff 70%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
         }
 
-        canvas {
-            width: 100%;
-            height: 100%;
-            display: block;
-        }
-
-        #hud {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            padding: env(safe-area-inset-top, 24px) 20px 0 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            pointer-events: none;
-            z-index: 5;
-        }
-
-        .hud-card {
-            background: rgba(15, 15, 26, 0.8);
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
-            padding: 8px 18px;
-            border-radius: 30px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #ffffff;
+        .currency-label {
+            font-size: 1.8rem;
             font-weight: 800;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 20px;
+            color: var(--success);
+            text-shadow: 0 0 15px rgba(52, 211, 153, 0.4);
         }
 
-        .multiplier {
-            background: #00d2d3;
-            color: #000;
-            font-size: 11px;
-            padding: 2px 6px;
-            border-radius: 8px;
-            margin-left: 4px;
-        }
-
-        #active-powers {
-            position: absolute;
-            bottom: 30px;
-            left: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            pointer-events: none;
-            z-index: 5;
-            width: 160px;
-        }
-
-        .power-bar-container {
-            background: rgba(0, 0, 0, 0.75);
-            padding: 8px 12px;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: bold;
-            display: none;
+        #cps-display {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 600;
+            background: rgba(15, 23, 42, 0.6);
+            padding: 4px 14px;
+            border-radius: 20px;
+            display: inline-block;
             border: 1px solid rgba(255,255,255,0.05);
         }
 
-        .power-bar {
-            height: 6px;
-            border-radius: 3px;
-            margin-top: 4px;
+        /* Swiper Track Viewport */
+        .swiper-viewport {
             width: 100%;
-            transition: width 0.1s linear;
-        }
-
-        .btn-pause {
-            pointer-events: auto;
-            width: 40px;
-            height: 40px;
-            background: rgba(15, 15, 26, 0.8);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: #fff;
-            border-radius: 50%;
-            font-size: 16px;
-            cursor: pointer;
+            max-width: 420px;
+            height: 180px;
             display: flex;
             justify-content: center;
             align-items: center;
+            perspective: 1000px;
+            position: relative;
+            z-index: 5;
         }
 
-        .overlay {
+        /* Terminal Reader Base */
+        .terminal-track {
+            position: relative;
+            width: 300px;
+            height: 120px;
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 24px;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            transform: rotateX(15deg);
+            transform-style: preserve-3d;
+            backdrop-filter: blur(8px);
+        }
+
+        .terminal-slot {
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            left: 15px;
+            right: 15px;
+            height: 54px;
+            background: #090d16;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.05);
+            box-shadow: inset 0 4px 8px rgba(0,0,0,0.7);
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 15px;
+            color: #334155;
+            font-weight: 800;
+            letter-spacing: 1.5px;
+            font-size: 0.7rem;
+        }
+
+        /* Interactive 3D Card */
+        .payment-card {
+            position: absolute;
+            left: 20px;
+            width: 120px;
+            height: 76px;
+            background: var(--card-grad);
+            border-radius: 12px;
+            box-shadow: 0 12px 24px rgba(0,0,0,0.5), inset 0 1px 2px rgba(255,255,255,0.4);
+            cursor: grab;
             display: flex;
             flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            background: rgba(9, 10, 21, 0.85);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            z-index: 10;
-            transition: opacity 0.3s ease, visibility 0.3s;
-            padding: 30px;
-            text-align: center;
+            justify-content: space-between;
+            padding: 10px;
+            transform: translateZ(25px);
+            transform-style: preserve-3d;
+            z-index: 5;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        .overlay.hidden {
-            opacity: 0;
-            visibility: hidden;
-            pointer-events: none;
+        .card-chip {
+            width: 20px;
+            height: 14px;
+            background: linear-gradient(135deg, #fef08a, #ca8a04);
+            border-radius: 3px;
         }
 
-        h1 {
-            font-size: 40px;
-            font-weight: 900;
-            letter-spacing: -1px;
-            background: linear-gradient(135deg, #00d2d3 0%, #ff9f43 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 10px;
-            text-transform: uppercase;
+        .card-number {
+            font-family: monospace;
+            font-size: 0.6rem;
+            color: rgba(255,255,255,0.8);
+            letter-spacing: 1px;
         }
 
-        .menu-stats {
-            font-size: 15px;
-            color: #a4b0be;
-            margin-bottom: 40px;
-            line-height: 1.6;
-        }
-
-        .btn-main {
-            background: #ffffff;
-            color: #090a15;
-            border: none;
-            padding: 16px 48px;
-            font-size: 18px;
-            font-weight: 700;
-            border-radius: 40px;
-            cursor: pointer;
-            box-shadow: 0 10px 25px rgba(255, 255, 255, 0.1);
-            text-transform: uppercase;
-        }
-
-        #board-hint {
+        /* Floating Swipe Text Particles */
+        .floating-text {
             position: absolute;
-            bottom: 24px;
-            width: 100%;
-            text-align: center;
-            font-size: 12px;
-            color: rgba(255,255,255,0.4);
+            color: #ffffff;
+            font-size: 1.6rem;
+            font-weight: 900;
             pointer-events: none;
-            z-index: 4;
+            animation: floatAway 0.55s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            text-shadow: 0 4px 12px rgba(52, 211, 153, 0.5), 0 0 2px #000;
+            z-index: 100;
+        }
+
+        @keyframes floatAway {
+            0% { opacity: 0; transform: translate(-50%, -50%) scale(0.7); }
+            20% { opacity: 1; transform: translate(-50%, -80%) scale(1.1); }
+            100% { opacity: 0; transform: translate(-20%, -150px) scale(0.8); }
+        }
+
+        /* Upgrades Scrollable Frame Layout */
+        .scroll-wrapper {
+            flex: 1;
+            width: 100%;
+            max-width: 420px;
+            overflow-y: auto;
+            padding: 0 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 10;
+            mask-image: linear-gradient(to bottom, transparent 0%, black 3%, black 95%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 3%, black 95%, transparent 100%);
+        }
+
+        .upgrade-card {
+            background: var(--bg-surface);
+            border-radius: 14px;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid rgba(255,255,255,0.03);
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            transition: background 0.15s ease, opacity 0.2s ease, transform 0.1s ease;
+            backdrop-filter: blur(6px);
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .upgrade-card:active {
+            transform: scale(0.98);
+            background: var(--bg-surface-elevated);
+        }
+
+        .upgrade-card.disabled {
+            opacity: 0.25;
+            cursor: not-allowed;
+            pointer-events: none;
+            box-shadow: none;
+        }
+
+        .upgrade-info {
+            display: flex;
+            flex-direction: column;
+            max-width: 70%;
+        }
+
+        .upgrade-name {
+            font-size: 0.95rem;
+            font-weight: 700;
+            letter-spacing: -0.2px;
+        }
+
+        .upgrade-effect {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 1px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .upgrade-meta {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .upgrade-cost {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: var(--success);
+        }
+
+        .upgrade-card.disabled .upgrade-cost {
+            color: var(--text-muted);
+        }
+
+        .upgrade-count {
+            font-size: 0.7rem;
+            color: #818cf8;
+            font-weight: 700;
+            background: rgba(99, 102, 241, 0.15);
+            padding: 1px 6px;
+            border-radius: 5px;
+            align-self: flex-end;
+        }
+
+        /* System Controls Bar */
+        .controls {
+            padding: 15px 20px;
+            width: 100%;
+            max-width: 420px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 10;
+            backdrop-filter: blur(4px);
+        }
+
+        .save-indicator {
+            font-size: 0.75rem;
+            color: var(--success);
             font-weight: 600;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .save-indicator.show {
+            opacity: 1;
+        }
+
+        .reset-btn {
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.08);
+            color: var(--danger);
+            padding: 5px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            cursor: pointer;
         }
     </style>
 </head>
 <body>
 
-    <div id="game-container">
-        <canvas id="gameCanvas"></canvas>
+    <div class="fog-overlay"></div>
 
-        <div id="hud">
-            <div class="hud-card">
-                <span id="score-val">0000</span>
-                <span id="mult-val" class="multiplier">x1</span>
-            </div>
-            <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 10px;">
-                <div class="hud-card" style="color: #ff9f43;">
-                    <span id="coins-val">0</span><span>🪙</span>
-                </div>
-                <button id="pause-btn" class="btn-pause">⏸</button>
-            </div>
+    <div class="dashboard">
+        <div class="balance-container">
+            <span id="balance">0</span><span class="currency-label">$</span>
         </div>
+        <div id="cps-display">CPS: 0.0</div>
+    </div>
 
-        <div id="board-hint">🛹 Space / Double Tap to Use Hoverboard</div>
-
-        <div id="active-powers">
-            <div id="magnet-ui" class="power-bar-container" style="color: #2ecc71;">
-                🧲 MAGNET
-                <div id="magnet-progress" class="power-bar" style="background: #2ecc71;"></div>
+    <div class="swiper-viewport" id="track-viewport">
+        <div class="terminal-track">
+            <div class="terminal-slot">SLIDE TO SETTLE GENTLY ➔</div>
+            <div class="payment-card" id="swipe-card">
+                <div class="card-chip"></div>
+                <div class="card-number">•••• •••• •••• 2026</div>
             </div>
-            <div id="boots-ui" class="power-bar-container" style="color: #e74c3c;">
-                🦘 SUPER BOOTS
-                <div id="boots-progress" class="power-bar" style="background: #e74c3c;"></div>
-            </div>
-            <div id="board-ui" class="power-bar-container" style="color: #00d2d3;">
-                🛹 HOVERBOARD ACTIVE
-                <div id="board-progress" class="power-bar" style="background: #00d2d3;"></div>
-            </div>
-        </div>
-
-        <div id="menu-overlay" class="overlay">
-            <h1>SUBWAY SURGE</h1>
-            <p class="menu-stats">
-                HIGH RECORD <strong id="high-score-val" style="color: #fff;">0000</strong><br>
-                TOTAL WALLET <strong id="total-coins-val" style="color: #ff9f43;">0</strong>
-            </p>
-            <button id="start-btn" class="btn-main">Tap To Surf</button>
-        </div>
-
-        <div id="pause-overlay" class="overlay hidden">
-            <h1>PAUSED</h1>
-            <button id="resume-btn" class="btn-main">Resume</button>
-        </div>
-
-        <div id="gameover-overlay" class="overlay hidden">
-            <h1>CRASHED</h1>
-            <p class="menu-stats">
-                SCORE: <strong id="final-score" style="color: #fff;">0000</strong><br>
-                COINS: <strong id="final-coins" style="color: #ff9f43;">0</strong>
-            </p>
-            <button id="restart-btn" class="btn-main" style="background: #ff4757; color: white;">Run Again</button>
         </div>
     </div>
 
-    <script src="https://unpkg.com/three@0.146.0/build/three.min.js"></script>
+    <!-- Scrollable framework housing all 20 unique items -->
+    <div class="scroll-wrapper" id="upgrades-box"></div>
+
+    <div class="controls">
+        <span class="save-indicator" id="save-status">● Core Ledger Synced</span>
+        <button class="reset-btn" id="reset-btn">Reset Account</button>
+    </div>
 
     <script>
-        const STATES = { MENU: 0, PLAYING: 1, PAUSED: 2, GAMEOVER: 3 };
-        let gameState = STATES.MENU;
-
-        let highScore = parseInt(localStorage.getItem('h_casual_score')) || 0;
-        let totalCoins = parseInt(localStorage.getItem('h_casual_coins')) || 0;
-
-        let scene, camera, renderer;
-        let player, playerMesh, hoverboardMesh;
-        let obstacles = [];
-        let coins = [];
-        let powerUps = [];
-
-        let gameSpeed = 32;
-        const baseSpeed = 32;
-        const maxSpeed = 95;
-        const accelerationRate = 0.45; 
-
-        let score = 0;
-        let collectedCoins = 0;
-        const laneWidth = 3.5;
-        let currentLane = 1;
-        let targetPlayerX = 0;
-
-        let playerState = 'RUNNING'; 
-        let actionTimer = 0;
-        let jumpDuration = 0.5; 
-        const slideDuration = 0.45;
-        let currentBaseY = 0; 
-
-        let timers = { magnet: 0, boots: 0, board: 0 };
-        const powerDuration = 8.0; 
-
-        let nextSpawnZ = -40;
-        const spawnInterval = 42;
-        let lastTouchTime = 0; // لضبط الـ Double Tap
-
-        const ui = {
-            score: document.getElementById('score-val'),
-            mult: document.getElementById('mult-val'),
-            coins: document.getElementById('coins-val'),
-            highScore: document.getElementById('high-score-val'),
-            totalCoins: document.getElementById('total-coins-val'),
-            finalScore: document.getElementById('final-score'),
-            finalCoins: document.getElementById('final-coins'),
-            menu: document.getElementById('menu-overlay'),
-            pause: document.getElementById('pause-overlay'),
-            gameover: document.getElementById('gameover-overlay'),
-            btnStart: document.getElementById('start-btn'),
-            btnPause: document.getElementById('pause-btn'),
-            btnResume: document.getElementById('resume-btn'),
-            btnRestart: document.getElementById('restart-btn'),
-            magnetUi: document.getElementById('magnet-ui'),
-            magnetBar: document.getElementById('magnet-progress'),
-            bootsUi: document.getElementById('boots-ui'),
-            bootsBar: document.getElementById('boots-progress'),
-            boardUi: document.getElementById('board-ui'),
-            boardBar: document.getElementById('board-progress')
+        // Core Game Matrix Definition supporting 20 separate tiered upgrades
+        let gameState = {
+            coins: 0,
+            upgrades: {
+                // Click Upgrades Group (1-5)
+                u1: { name: "💳 Matte Finish", type: "click", owned: 0, cost: 10, mult: 1.14, power: 1, desc: "+1 per swipe" },
+                u2: { name: "🛡️ Embossed Digits", type: "click", owned: 0, cost: 120, mult: 1.15, power: 5, desc: "+5 per swipe" },
+                u3: { name: "✨ Magnetic Polish", type: "click", owned: 0, cost: 850, mult: 1.16, power: 25, desc: "+25 per swipe" },
+                u4: { name: "💎 Platinum Core", type: "click", owned: 0, cost: 6200, mult: 1.16, power: 120, desc: "+120 per swipe" },
+                u5: { name: "🌌 Carbon Quantum", type: "click", owned: 0, cost: 45000, mult: 1.18, power: 750, desc: "+750 per swipe" },
+                
+                // Automation Upgrades Group (6-20)
+                u6: { name: "💸 Micro Cashback", type: "auto", owned: 0, cost: 40, mult: 1.15, power: 0.5, desc: "+0.5 CPS" },
+                u7: { name: "📱 Mobile Wallet", type: "auto", owned: 0, cost: 260, mult: 1.15, power: 2, desc: "+2.0 CPS" },
+                u8: { name: "🏦 Direct Deposit", type: "auto", owned: 0, cost: 1500, mult: 1.15, power: 10, desc: "+10.0 CPS" },
+                u9: { name: "🤖 Smart Contracts", type: "auto", owned: 0, cost: 7800, mult: 1.15, power: 45, desc: "+45.0 CPS" },
+                u10: { name: "🏪 Local Merchant", type: "auto", owned: 0, cost: 34000, mult: 1.15, power: 180, desc: "+180 CPS" },
+                u11: { name: "🚛 Supply Chain", type: "auto", owned: 0, cost: 180000, mult: 1.14, power: 820, desc: "+820 CPS" },
+                u12: { name: "🏢 Mega Logistics", type: "auto", owned: 0, cost: 920000, mult: 1.14, power: 4200, desc: "+4.2K CPS" },
+                u13: { name: "📡 High Frequency", type: "auto", owned: 0, cost: 4800000, mult: 1.14, power: 21000, desc: "+21K CPS" },
+                u14: { name: "🛰️ Satellite Nodes", type: "auto", owned: 0, cost: 26000000, mult: 1.13, power: 115000, desc: "+115K CPS" },
+                u15: { name: "🧬 Neural Clearing", type: "auto", owned: 0, cost: 150000000, mult: 1.13, power: 680000, desc: "+680K CPS" },
+                u16: { name: "🔋 Fusion Servers", type: "auto", owned: 0, cost: 950000000, mult: 1.13, power: 4100000, desc: "+4.1M CPS" },
+                u17: { name: "🪐 Orbital Banking", type: "auto", owned: 0, cost: 6800000000, mult: 1.12, power: 26000000, desc: "+26M CPS" },
+                u18: { name: "⚡ Singularity Hub", type: "auto", owned: 0, cost: 45000000000, mult: 1.12, power: 180000000, desc: "+180M CPS" },
+                u19: { name: "🌌 Galactic Lattice", type: "auto", owned: 0, cost: 320000000000, mult: 1.12, power: 1200000000, desc: "+1.2B CPS" },
+                u20: { name: "⏳ Chrono Ledger", type: "auto", owned: 0, cost: 2500000000000, mult: 1.11, power: 9500000000, desc: "+9.5B CPS" }
+            }
         };
 
-        function init() {
-            const container = document.getElementById('game-container');
-            
-            scene = new THREE.Scene();
-            scene.background = new THREE.Color('#111424'); 
-            scene.fog = new THREE.FogExp2('#111424', 0.012);
+        // Web Audio Synthesizer Framework
+        let audioCtx = null;
+        function playAudioTone(freq, type, duration, vol) {
+            try {
+                if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (audioCtx.state === 'suspended') audioCtx.resume();
 
-            camera = new THREE.PerspectiveCamera(60, container.clientWidth / container.clientHeight, 0.1, 1000);
-            camera.position.set(0, 6, 11);
-            camera.lookAt(0, 2, -15);
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
 
-            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true });
-            renderer.setSize(container.clientWidth, container.clientHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.shadowMap.enabled = true;
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.001, audioCtx.currentTime + duration);
 
-            buildLights();
-            buildEnvironment();
-            buildPlayer();
-            setupInputs();
-            updateUI();
-
-            window.addEventListener('resize', onWindowResize);
-
-            lastTime = performance.now();
-            requestAnimationFrame(animate);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
         }
 
-        function buildLights() {
-            const ambientLight = new THREE.AmbientLight('#ffffff', 0.6);
-            scene.add(ambientLight);
-
-            const dirLight = new THREE.DirectionalLight('#ffffff', 0.9);
-            dirLight.position.set(15, 30, 10);
-            dirLight.castShadow = true;
-            scene.add(dirLight);
+        // Action sound configurations
+        function playSwipeBuzz() {
+            playAudioTone(130, 'sawtooth', 0.12, 0.18);
         }
 
-        function buildEnvironment() {
-            const floorGeo = new THREE.PlaneGeometry(16, 2000);
-            const floorMat = new THREE.MeshStandardMaterial({ color: '#2c3e50', roughness: 0.6 });
-            const floor = new THREE.Mesh(floorGeo, floorMat);
-            floor.rotation.x = -Math.PI / 2;
-            floor.position.z = -1000;
-            floor.receiveShadow = true;
-            scene.add(floor);
+        function playPurchaseChime() {
+            // Complex multi-layered chime for upgrade purchases
+            playAudioTone(587.33, 'triangle', 0.08, 0.15); // D5
+            setTimeout(() => playAudioTone(880, 'triangle', 0.15, 0.12), 60); // A5
+        }
 
-            const lineGeo = new THREE.PlaneGeometry(0.15, 2000);
-            const lineMat = new THREE.MeshBasicMaterial({ color: '#00d2d3', transparent: true, opacity: 0.2 });
-            [-0.5, 0.5].forEach(offset => {
-                const line = new THREE.Mesh(lineGeo, lineMat);
-                line.rotation.x = -Math.PI / 2;
-                line.position.set(offset * laneWidth, 0.02, -1000);
-                scene.add(line);
+        const balanceEl = document.getElementById('balance');
+        const cpsEl = document.getElementById('cps-display');
+        const cardEl = document.getElementById('swipe-card');
+        const upgradesBox = document.getElementById('upgrades-box');
+        const saveStatusEl = document.getElementById('save-status');
+        const resetBtn = document.getElementById('reset-btn');
+
+        // Layout Tracking variables
+        const MIN_X = 20;
+        const MAX_X = 140;
+        let isDragging = false;
+        let startX = 0;
+        let currentX = MIN_X;
+        let hasTriggeredThisSwipe = false;
+
+        // Cost Calculation Engine
+        function getCurrentCost(key) {
+            const u = gameState.upgrades[key];
+            return Math.floor(u.cost * Math.pow(u.mult, u.owned));
+        }
+
+        function getClickPower() {
+            let p = 1;
+            for (const k in gameState.upgrades) {
+                if (gameState.upgrades[k].type === "click") {
+                    p += gameState.upgrades[k].owned * gameState.upgrades[k].power;
+                }
+            }
+            return p;
+        }
+
+        function getTotalCPS() {
+            let c = 0;
+            for (const k in gameState.upgrades) {
+                if (gameState.upgrades[k].type === "auto") {
+                    c += gameState.upgrades[k].owned * gameState.upgrades[k].power;
+                }
+            }
+            return c;
+        }
+
+        function formatNumber(num) {
+            if (num >= 1e12) return (num / 1e12).toFixed(2) + 'T';
+            if (num >= 1e9) return (num / 1e9).toFixed(2) + 'B';
+            if (num >= 1e6) return (num / 1e6).toFixed(2) + 'M';
+            if (num >= 1e3) return (num / 1e3).toFixed(1) + 'K';
+            return Math.floor(num).toString();
+        }
+
+        // Procedural Element Factory for Upgrades
+        function generateUpgradeElements() {
+            upgradesBox.innerHTML = '';
+            Object.keys(gameState.upgrades).forEach(key => {
+                const u = gameState.upgrades[key];
+                
+                const card = document.createElement('div');
+                card.className = 'upgrade-card';
+                card.id = `card-${key}`;
+                
+                card.innerHTML = `
+                    <div class="upgrade-info">
+                        <span class="upgrade-name">${u.name}</span>
+                        <span class="upgrade-effect">${u.desc}</span>
+                    </div>
+                    <div class="upgrade-meta">
+                        <span class="upgrade-cost" id="cost-${key}">$0</span>
+                        <span class="upgrade-count" id="count-${key}">0</span>
+                    </div>
+                `;
+                
+                card.addEventListener('click', () => attemptUpgradePurchase(key));
+                upgradesBox.appendChild(card);
             });
-        }
-
-        function buildPlayer() {
-            player = new THREE.Group();
-
-            // مجسم الـ Capsule الأساسي
-            const bodyGeo = new THREE.CapsuleGeometry(0.45, 1.2, 8, 16);
-            const bodyMat = new THREE.MeshStandardMaterial({ color: '#ff9f43', roughness: 0.2 });
-            playerMesh = new THREE.Mesh(bodyGeo, bodyMat);
-            playerMesh.position.y = 1.05; 
-            playerMesh.castShadow = true;
-            player.add(playerMesh);
-
-            // مجسم لوح التزلج الزلاجة (يكون مخفياً حتى تفعيل الخاصية)
-            const boardGeo = new THREE.BoxGeometry(0.8, 0.08, 1.8);
-            const boardMat = new THREE.MeshStandardMaterial({ color: '#00d2d3', metalness: 0.5, roughness: 0.2 });
-            hoverboardMesh = new THREE.Mesh(boardGeo, boardMat);
-            hoverboardMesh.position.set(0, 0.1, 0);
-            hoverboardMesh.visible = false; 
-            player.add(hoverboardMesh);
-
-            scene.add(player);
-        }
-
-        function spawnObstacle() {
-            const lanes = [0, 1, 2].sort(() => Math.random() - 0.5);
-            const selectedLane = lanes[0];
-            const secondaryLane = lanes[1];
-            const xPos = (selectedLane - 1) * laneWidth;
-
-            const roll = Math.random();
-
-            if (roll < 0.45) {
-                // 1. قطار طويل كرتوني مجهز بدرج مائل (Ramp) للصعود التلقائي بدون مشاكل
-                const trainLength = 28; 
-                const trainHeight = 2.8;
-                
-                const trainGroup = new THREE.Group();
-                trainGroup.position.set(xPos, 0, nextSpawnZ);
-
-                // جسم القطار الرئيسي
-                const trainGeo = new THREE.BoxGeometry(2.6, trainHeight, trainLength);
-                const trainMat = new THREE.MeshStandardMaterial({ color: '#2e86de', roughness: 0.3 });
-                const mainBody = new THREE.Mesh(trainGeo, trainMat);
-                mainBody.position.set(0, trainHeight / 2, -trainLength / 2);
-                mainBody.castShadow = true;
-                mainBody.receiveShadow = true;
-                trainGroup.add(mainBody);
-
-                // ميزة الدرج المائل (Ramp): مجسم بوكس مدور مائل لرفع اللاعب لسطح القطار تلقائياً
-                const rampLength = 5;
-                const rampGeo = new THREE.BoxGeometry(2.6, 0.2, rampLength);
-                const rampMat = new THREE.MeshStandardMaterial({ color: '#54a0ff' });
-                const ramp = new THREE.Mesh(rampGeo, rampMat);
-                
-                // حساب دقيق لزاوية الميل ومكان الاتصال ببدء القطار
-                ramp.rotation.x = Math.atan2(trainHeight, rampLength);
-                ramp.position.set(0, trainHeight / 2, 1.2); 
-                trainGroup.add(ramp);
-
-                trainGroup.userData = { 
-                    type: 'TRAIN', 
-                    lane: selectedLane, 
-                    zStart: nextSpawnZ + 3, // تم تمديدها لتشمل مساحة الدرج
-                    zEnd: nextSpawnZ - trainLength, 
-                    height: trainHeight 
-                };
-                
-                scene.add(trainGroup);
-                obstacles.push(trainGroup);
-
-                // صف عملات فوق القطار متناسق
-                const coinGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.1, 16);
-                const coinMat = new THREE.MeshStandardMaterial({ color: '#ffd700', metalness: 0.8 });
-                for (let zOffset = 2; zOffset < trainLength; zOffset += 4) {
-                    const coin = new THREE.Mesh(coinGeo, coinMat);
-                    coin.rotation.x = Math.PI / 2;
-                    coin.position.set(xPos, trainHeight + 1.1, nextSpawnZ - zOffset);
-                    coin.userData = { lane: selectedLane };
-                    scene.add(coin); coins.push(coin);
-                }
-
-            } else if (roll < 0.75) {
-                // 2. بوابة علوية عادية
-                const barGroup = new THREE.Group();
-                barGroup.position.set(xPos, 0, nextSpawnZ);
-                const postGeo = new THREE.CylinderGeometry(0.08, 0.08, 2.5);
-                const barMat = new THREE.MeshStandardMaterial({ color: '#ee5253' });
-                const leftPost = new THREE.Mesh(postGeo, barMat); leftPost.position.set(-1.2, 1.25, 0);
-                const rightPost = leftPost.clone(); rightPost.position.x = 1.2;
-                const topGeo = new THREE.CylinderGeometry(0.08, 0.08, 2.4);
-                const topBar = new THREE.Mesh(topGeo, barMat); topBar.rotation.z = Math.PI / 2; topBar.position.set(0, 2.5, 0);
-                barGroup.add(leftPost, rightPost, topBar);
-
-                barGroup.userData = { type: 'BARRIER', lane: selectedLane, height: 2.5 };
-                scene.add(barGroup); obstacles.push(barGroup);
-
-                // ذهب سفلي تحت البوابة
-                const coinGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.1, 16);
-                const coinMat = new THREE.MeshStandardMaterial({ color: '#ffd700', metalness: 0.8 });
-                const coin = new THREE.Mesh(coinGeo, coinMat); coin.rotation.x = Math.PI / 2; coin.position.set(xPos, 0.6, nextSpawnZ);
-                coin.userData = { lane: selectedLane }; scene.add(coin); coins.push(coin);
-            } else {
-                // 3. حاجز أرضي منخفض
-                const lowGeo = new THREE.CylinderGeometry(0.2, 0.2, 2.4, 16);
-                const lowMat = new THREE.MeshStandardMaterial({ color: '#feca57' });
-                const lowBar = new THREE.Mesh(lowGeo, lowMat);
-                lowBar.rotation.z = Math.PI / 2; lowBar.position.set(xPos, 0.3, nextSpawnZ);
-                lowBar.userData = { type: 'LOW_BAR', lane: selectedLane, height: 0.6 };
-                scene.add(lowBar); obstacles.push(lowBar);
-            }
-
-            // توليد القدرات العشوائية بشكل جذاب ومثالي
-            if (Math.random() > 0.7) {
-                const pLane = secondaryLane;
-                const pX = (pLane - 1) * laneWidth;
-                const powerRoll = Math.random();
-                
-                let pMesh;
-                if (powerRoll < 0.4) {
-                    // مغناطيس
-                    const magGeo = new THREE.TorusGeometry(0.25, 0.1, 8, 16, Math.PI);
-                    const magMat = new THREE.MeshStandardMaterial({ color: '#1dd1a1', metalness: 0.3 });
-                    pMesh = new THREE.Mesh(magGeo, magMat); pMesh.rotation.z = Math.PI;
-                    pMesh.userData = { pType: 'MAGNET' };
-                } else if (powerRoll < 0.8) {
-                    // بوط القفز
-                    const bootGeo = new THREE.SphereGeometry(0.3, 16, 16);
-                    const bootMat = new THREE.MeshStandardMaterial({ color: '#ff6b6b', roughness: 0.2 });
-                    pMesh = new THREE.Mesh(bootGeo, bootMat);
-                    pMesh.userData = { pType: 'BOOTS' };
-                } else {
-                    // زلاجة تجدها في الطريق لتركبها تلقائياً
-                    const boardGeo = new THREE.BoxGeometry(0.6, 0.06, 1.3);
-                    const boardMat = new THREE.MeshStandardMaterial({ color: '#00d2d3', metalness: 0.6 });
-                    pMesh = new THREE.Mesh(boardGeo, boardMat);
-                    pMesh.userData = { pType: 'BOARD' };
-                }
-                
-                pMesh.position.set(pX, 1.1, nextSpawnZ - 8);
-                pMesh.userData.lane = pLane;
-                scene.add(pMesh); powerUps.push(pMesh);
-            }
-
-            nextSpawnZ -= spawnInterval;
-        }
-
-        let lastTime = 0;
-        function animate(timestamp) {
-            let dt = (timestamp - lastTime) / 1000;
-            if (dt > 0.1) dt = 0.1;
-            lastTime = timestamp;
-
-            if (gameState === STATES.PLAYING) {
-                gameSpeed = Math.min(maxSpeed, gameSpeed + accelerationRate * dt);
-                score += gameSpeed * dt * 3.2;
-
-                // تحديث وإدارة التوقيتات والأشرطة للـ UI
-                if (timers.magnet > 0) {
-                    timers.magnet -= dt; ui.magnetUi.style.display = 'block';
-                    ui.magnetBar.style.width = `${(timers.magnet / powerDuration) * 100}%`;
-                    if (timers.magnet <= 0) ui.magnetUi.style.display = 'none';
-                }
-                if (timers.boots > 0) {
-                    timers.boots -= dt; ui.bootsUi.style.display = 'block';
-                    ui.bootsBar.style.width = `${(timers.boots / powerDuration) * 100}%`;
-                    if (timers.boots <= 0) { ui.bootsUi.style.display = 'none'; jumpDuration = 0.5; }
-                }
-                if (timers.board > 0) {
-                    timers.board -= dt; ui.boardUi.style.display = 'block';
-                    ui.boardBar.style.width = `${(timers.board / powerDuration) * 100}%`;
-                    hoverboardMesh.visible = true;
-                    // تذبذب بصري مرن للزلاجة لزيادة جمالية اللعبة
-                    hoverboardMesh.position.y = 0.1 + Math.sin(timestamp * 0.01) * 0.04;
-                    if (timers.board <= 0) { ui.boardUi.style.display = 'none'; hoverboardMesh.visible = false; }
-                }
-
-                targetPlayerX = (currentLane - 1) * laneWidth;
-                player.position.x += (targetPlayerX - player.position.x) * 18 * dt;
-
-                // نظام الصعود فوق القطار من الدرج والمشي التلقائي عليه
-                let onTrain = false;
-                let trainHeight = 0;
-                for (let obs of obstacles) {
-                    if (obs.userData.type === 'TRAIN' && obs.userData.lane === currentLane) {
-                        if (player.position.z <= obs.userData.zStart && player.position.z >= obs.userData.zEnd) {
-                            onTrain = true;
-                            // ميكانيكية حساب الارتفاع التدرجي بناءً على مكان اللاعب فوق الدرج المائل
-                            const trainZLength = obs.userData.zStart - obs.userData.zEnd;
-                            const currentProgressZ = obs.userData.zStart - player.position.z;
-                            
-                            if (currentProgressZ < 5) { 
-                                // على مساحة الدرج المائل
-                                trainHeight = (currentProgressZ / 5) * obs.userData.height;
-                            } else {
-                                // ركض مستقر فوق سطح القطار
-                                trainHeight = obs.userData.height;
-                            }
-                            break;
-                        }
-                    }
-                }
-
-                if (onTrain && playerState === 'RUNNING') {
-                    currentBaseY = trainHeight;
-                    player.position.y = currentBaseY;
-                } else if (!onTrain && playerState === 'RUNNING') {
-                    currentBaseY = 0;
-                    player.position.y += (0 - player.position.y) * 12 * dt;
-                }
-
-                // حسابات القفز والإنزلاق
-                actionTimer += dt;
-                if (playerState === 'JUMPING') {
-                    const norm = actionTimer / jumpDuration;
-                    if (norm >= 1.0) {
-                        playerState = 'RUNNING'; player.position.y = currentBaseY;
-                    } else {
-                        const jHeight = timers.boots > 0 ? 6.5 : 3.8;
-                        player.position.y = currentBaseY + Math.sin(norm * Math.PI) * jHeight;
-                    }
-                } else if (playerState === 'SLIDING') {
-                    const norm = actionTimer / slideDuration;
-                    if (norm >= 1.0) {
-                        playerState = 'RUNNING'; playerMesh.scale.set(1, 1, 1); playerMesh.position.y = 1.05;
-                    } else {
-                        playerMesh.scale.set(1, 0.45, 1); playerMesh.position.y = 0.45;
-                    }
-                }
-
-                if (nextSpawnZ - player.position.z > -250) spawnObstacle();
-
-                // معالجة واكتشاف القوى الخارقة الملقاة بالطريق
-                for (let i = powerUps.length - 1; i >= 0; i--) {
-                    const pUp = powerUps[i]; pUp.rotation.y += 4 * dt;
-                    if (pUp.position.z - player.position.z > 10) { scene.remove(pUp); powerUps.splice(i, 1); continue; }
-                    if (pUp.userData.lane === currentLane && Math.abs(pUp.position.z - player.position.z) < 1.5) {
-                        if (pUp.userData.pType === 'MAGNET') timers.magnet = powerDuration;
-                        else if (pUp.userData.pType === 'BOOTS') { timers.boots = powerDuration; jumpDuration = 0.65; }
-                        else if (pUp.userData.pType === 'BOARD') { timers.board = powerDuration; }
-                        scene.remove(pUp); powerUps.splice(i, 1);
-                    }
-                }
-
-                // ميكانيكية جذب النقود بالـ Lerp الناعم (بدون لاق أو اهتزاز نهائياً)
-                for (let i = coins.length - 1; i >= 0; i--) {
-                    const coin = coins[i]; coin.rotation.y += 4 * dt;
-
-                    if (coin.position.z - player.position.z > 15) { scene.remove(coin); coins.splice(i, 1); continue; }
-
-                    if (timers.magnet > 0 && Math.abs(coin.position.z - player.position.z) < 20) {
-                        // استخدام تدرج خطي ناعم Lerp لمنع التعليق والقفزات الفجائية للمجسم
-                        coin.position.x += (player.position.x - coin.position.x) * 10 * dt;
-                        coin.position.y += (player.position.y + 1.0 - coin.position.y) * 10 * dt;
-                        coin.position.z += (player.position.z - coin.position.z) * 10 * dt;
-                    }
-
-                    const pPos = new THREE.Vector3(player.position.x, player.position.y + 1.0, player.position.z);
-                    if (coin.position.distanceTo(pPos) < 1.6) {
-                        scene.remove(coin); coins.splice(i, 1);
-                        collectedCoins++; score += 50; updateUI();
-                    }
-                }
-
-                // نظام فحص الاصطدامات الذكي (مربوط بحماية الزلاجة الحارسة)
-                for (let i = obstacles.length - 1; i >= 0; i--) {
-                    const obs = obstacles[i];
-                    let hit = false;
-
-                    if (obs.userData.type === 'TRAIN') {
-                        // اصطدام فوري بوجه القطار المباشر (لو لم يكن قد صعد المنحدر المائل بعد)
-                        if (obs.userData.lane === currentLane && 
-                            Math.abs(player.position.z - obs.userData.zStart) < 0.6 && 
-                            player.position.y < 0.8) {
-                            hit = true;
-                        }
-                    } else {
-                        if (obs.userData.lane === currentLane && Math.abs(obs.position.z - player.position.z) < 1.2) {
-                            if (obs.userData.type === 'BARRIER' && playerState !== 'SLIDING' && player.position.y < obs.userData.height) hit = true;
-                            else if (obs.userData.type === 'LOW_BAR' && (playerState !== 'JUMPING' || (player.position.y - currentBaseY) < obs.userData.height)) hit = true;
-                        }
-                    }
-
-                    if (hit) {
-                        if (timers.board > 0) {
-                            // ميزة الزلاجة: حماية اللاعب من الموت، تحطيمها وإعطائه فترة سماح قصيرة
-                            timers.board = 0;
-                            ui.boardUi.style.display = 'none';
-                            hoverboardMesh.visible = false;
-                            scene.remove(obs);
-                            obstacles.splice(i, 1);
-                        } else {
-                            setGameState(STATES.GAMEOVER);
-                        }
-                    }
-                }
-
-                player.position.z -= gameSpeed * dt;
-                camera.position.z = player.position.z + 11;
-                camera.position.x += (player.position.x * 0.4 - camera.position.x) * 5 * dt;
-                camera.lookAt(player.position.x * 0.15, 2, player.position.z - 16);
-
-                if (Math.floor(score) % 4 === 0) updateUI();
-            }
-
-            renderer.render(scene, camera);
-            requestAnimationFrame(animate);
-        }
-
-        function setupInputs() {
-            window.addEventListener('keydown', e => {
-                if (gameState !== STATES.PLAYING) return;
-                if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') moveLane(-1);
-                if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') moveLane(1);
-                if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') triggerJump();
-                if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') triggerSlide();
-                if (e.key === ' ') triggerBoard(); // تفعيل الزلاجة بالمسافة للكمبيوتر
-            });
-
-            let touchX = 0, touchY = 0;
-            window.addEventListener('touchstart', e => {
-                touchX = e.changedTouches[0].clientX;
-                touchY = e.changedTouches[0].clientY;
-
-                // رصد نقرتين متتاليتين (Double Tap) لتشغيل الزلاجة في الجوال
-                let now = performance.now();
-                if (now - lastTouchTime < 300) {
-                    triggerBoard();
-                }
-                lastTouchTime = now;
-            }, { passive: true });
-
-            window.addEventListener('touchend', e => {
-                if (gameState !== STATES.PLAYING) return;
-                const dx = e.changedTouches[0].clientX - touchX;
-                const dy = e.changedTouches[0].clientY - touchY;
-
-                if (Math.abs(dx) > Math.abs(dy)) {
-                    if (Math.abs(dx) > 25) moveLane(dx > 0 ? 1 : -1);
-                } else {
-                    if (Math.abs(dy) > 25) { if (dy > 0) triggerSlide(); else triggerJump(); }
-                }
-            }, { passive: true });
-
-            ui.btnStart.addEventListener('click', () => { resetGame(); setGameState(STATES.PLAYING); });
-            ui.btnPause.addEventListener('click', () => { if (gameState === STATES.PLAYING) setGameState(STATES.PAUSED); });
-            ui.btnResume.addEventListener('click', () => { setGameState(STATES.PLAYING); });
-            ui.btnRestart.addEventListener('click', () => { resetGame(); setGameState(STATES.PLAYING); });
-        }
-
-        function moveLane(dir) {
-            const next = currentLane + dir;
-            if (next >= 0 && next <= 2) currentLane = next;
-        }
-
-        function triggerJump() {
-            if (playerState === 'RUNNING' || playerState === 'SLIDING') { playerState = 'JUMPING'; actionTimer = 0; }
-        }
-
-        function triggerSlide() {
-            if (playerState === 'RUNNING' || playerState === 'JUMPING') { playerState = 'SLIDING'; actionTimer = 0; }
-        }
-
-        function triggerBoard() {
-            if (gameState === STATES.PLAYING && timers.board <= 0) {
-                timers.board = powerDuration;
-            }
-        }
-
-        function setGameState(newState) {
-            gameState = newState;
-            ui.menu.classList.add('hidden'); ui.pause.classList.add('hidden'); ui.gameover.classList.add('hidden');
-
-            if (gameState === STATES.MENU) {
-                ui.menu.classList.remove('hidden'); updateUI();
-            } else if (gameState === STATES.PAUSED) {
-                ui.pause.classList.remove('hidden');
-            } else if (gameState === STATES.GAMEOVER) {
-                ui.gameover.classList.remove('hidden');
-                ui.finalScore.textContent = Math.floor(score).toString().padStart(4, '0');
-                ui.finalCoins.textContent = collectedCoins;
-
-                if (Math.floor(score) > highScore) {
-                    highScore = Math.floor(score); localStorage.setItem('h_casual_score', highScore);
-                }
-                totalCoins += collectedCoins; localStorage.setItem('h_casual_coins', totalCoins);
-                
-                ui.magnetUi.style.display = 'none'; ui.bootsUi.style.display = 'none'; ui.boardUi.style.display = 'none';
-                hoverboardMesh.visible = false;
-            }
-        }
-
-        function resetGame() {
-            score = 0; collectedCoins = 0; gameSpeed = baseSpeed; currentLane = 1; targetPlayerX = 0;
-            playerState = 'RUNNING'; actionTimer = 0; currentBaseY = 0; nextSpawnZ = -40;
-            timers.magnet = 0; timers.boots = 0; timers.board = 0; jumpDuration = 0.5;
-
-            player.position.set(0, 0, 0);
-            playerMesh.scale.set(1, 1, 1); playerMesh.position.y = 1.05;
-            hoverboardMesh.visible = false;
-
-            obstacles.forEach(o => scene.remove(o)); coins.forEach(c => scene.remove(c)); powerUps.forEach(p => scene.remove(p));
-            obstacles = []; coins = []; powerUps = [];
-            updateUI();
         }
 
         function updateUI() {
-            ui.highScore.textContent = highScore.toString().padStart(4, '0');
-            ui.totalCoins.textContent = totalCoins;
-            ui.score.textContent = Math.floor(score).toString().padStart(4, '0');
-            ui.coins.textContent = collectedCoins;
-            ui.mult.textContent = `x${1 + Math.floor((gameSpeed - baseSpeed) / 12)}`;
+            balanceEl.textContent = formatNumber(gameState.coins);
+            cpsEl.textContent = `CPS: ${formatNumber(getTotalCPS())}`;
+
+            Object.keys(gameState.upgrades).forEach(key => {
+                const card = document.getElementById(`card-${key}`);
+                const costEl = document.getElementById(`cost-${key}`);
+                const countEl = document.getElementById(`count-${key}`);
+                const currentCost = getCurrentCost(key);
+
+                costEl.textContent = `$${formatNumber(currentCost)}`;
+                countEl.textContent = gameState.upgrades[key].owned;
+
+                if (gameState.coins >= currentCost) {
+                    card.classList.remove('disabled');
+                } else {
+                    card.classList.add('disabled');
+                }
+            });
         }
 
-        function onWindowResize() {
-            const container = document.getElementById('game-container');
-            camera.aspect = container.clientWidth / container.clientHeight; camera.updateProjectionMatrix();
-            renderer.setSize(container.clientWidth, container.clientHeight);
+        function spawnFloatingText(x, y, text) {
+            const floating = document.createElement('div');
+            floating.className = 'floating-text';
+            floating.textContent = text;
+            floating.style.left = `${x}px`;
+            floating.style.top = `${y}px`;
+            document.body.appendChild(floating);
+            floating.addEventListener('animationend', () => floating.remove());
         }
 
-        window.onload = () => { init(); };
+        /* Gesture Recognition Core Engine */
+        function onDragStart(e) {
+            isDragging = true;
+            hasTriggeredThisSwipe = false;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            startX = clientX - (currentX - MIN_X);
+            cardEl.style.transition = 'none';
+        }
+
+        function onDragMove(e) {
+            if (!isDragging) return;
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let deltaX = clientX - startX;
+            
+            currentX = MIN_X + deltaX;
+            if (currentX < MIN_X) currentX = MIN_X;
+            if (currentX > MAX_X) currentX = MAX_X;
+
+            const tiltRotation = ((currentX - MIN_X) / (MAX_X - MIN_X)) * 8;
+            cardEl.style.transform = `translateX(${currentX - MIN_X}px) translateZ(25px) rotateY(${tiltRotation}deg)`;
+
+            if (currentX >= MAX_X && !hasTriggeredThisSwipe) {
+                hasTriggeredThisSwipe = true;
+                executeSwipeIncome(e);
+            }
+        }
+
+        function onDragEnd() {
+            if (!isDragging) return;
+            isDragging = false;
+            cardEl.style.transition = 'transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.2)';
+            cardEl.style.transform = 'translateX(0px) translateZ(25px) rotateY(0deg)';
+            currentX = MIN_X;
+        }
+
+        function executeSwipeIncome(e) {
+            playSwipeBuzz();
+            const clickPower = getClickPower();
+            gameState.coins += clickPower;
+
+            let textX = window.innerWidth / 2 + 30;
+            let textY = window.innerHeight / 2 - 10;
+            if (e.touches && e.touches[0]) {
+                textX = e.touches[0].clientX;
+                textY = e.touches[0].clientY;
+            } else if (e.clientX) {
+                textX = e.clientX;
+                textY = e.clientY;
+            }
+
+            spawnFloatingText(textX, textY, `+$${formatNumber(clickPower)}`);
+            updateUI();
+        }
+
+        function attemptUpgradePurchase(key) {
+            const cost = getCurrentCost(key);
+            if (gameState.coins >= cost) {
+                gameState.coins -= cost;
+                gameState.upgrades[key].owned++;
+                playPurchaseChime();
+                updateUI();
+            }
+        }
+
+        function saveGame() {
+            localStorage.setItem('idleSwipeCloudSave20', JSON.stringify(gameState));
+            saveStatusEl.classList.add('show');
+            setTimeout(() => saveStatusEl.classList.remove('show'), 1200);
+        }
+
+        function loadGame() {
+            const savedData = localStorage.getItem('idleSwipeCloudSave20');
+            if (savedData) {
+                try {
+                    const parsed = JSON.parse(savedData);
+                    if (parsed && typeof parsed === 'object') {
+                        if (typeof parsed.coins === 'number') gameState.coins = parsed.coins;
+                        for (const key in parsed.upgrades) {
+                            if (gameState.upgrades[key]) {
+                                gameState.upgrades[key].owned = parsed.upgrades[key].owned || 0;
+                            }
+                        }
+                    }
+                } catch (err) {}
+            }
+            generateUpgradeElements();
+            updateUI();
+        }
+
+        function resetGame() {
+            if (confirm("Reset ledger and clear purchase histories?")) {
+                gameState.coins = 0;
+                for (const key in gameState.upgrades) {
+                    gameState.upgrades[key].owned = 0;
+                }
+                saveGame();
+                updateUI();
+            }
+        }
+
+        // Gesture listeners binding
+        cardEl.addEventListener('touchstart', onDragStart, { passive: true });
+        window.addEventListener('touchmove', onDragMove, { passive: true });
+        window.addEventListener('touchend', onDragEnd);
+
+        cardEl.addEventListener('mousedown', onDragStart);
+        window.addEventListener('mousemove', onDragMove);
+        window.addEventListener('mouseup', onDragEnd);
+
+        resetBtn.addEventListener('click', resetGame);
+
+        // Standard loops
+        setInterval(() => {
+            const passiveEarnings = getTotalCPS() / 10;
+            if (passiveEarnings > 0) {
+                gameState.coins += passiveEarnings;
+                updateUI();
+            }
+        }, 100);
+
+        setInterval(saveGame, 5000);
+        window.onload = loadGame;
     </script>
 </body>
 </html>
