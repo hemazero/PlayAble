@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>رحلة التطور العضلي — اللانهائية</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+    :root {
+        --bg: #14110f;
+        --bg-panel: #1a1512;
+        --card-bg: #221c17;
+        --card-bg-soft: #2a2219;
+        --accent: #e8890c;
+        --accent-strong: #ff9f1c;
+        --accent-soft: rgba(232, 137, 12, 0.16);
+        --gold: #ffd23f;
+        --violet: #8b7cff;
+        --text: #ede7de;
+        --text-dim: #9a9086;
+        --border: #362f28;
+        --danger: #e5484d;
+        --success: #3fb68b;
+    }
+
+    * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+        user-select: none;
+        -webkit-user-select: none;
+        -webkit-touch-callout: none;
+        font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+        touch-action: manipulation;
+    }
+
+    body {
+        background-color: var(--bg);
+        color: var(--text);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        overflow: hidden;
+    }
+
+    .game-container {
+        width: 100%;
+        max-width: 480px;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 15px 15px;
+        position: relative;
+        background: radial-gradient(circle at 50% -10%, #241d17 0%, #100d0b 65%);
+        border-left: 1px solid var(--border);
+        border-right: 1px solid var(--border);
+    }
+
+    /* Top bar — small, unobtrusive controls out of the main flow */
+    .top-bar {
+        width: 100%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .icon-btn {
+        width: 34px;
+        height: 34px;
+        border-radius: 50%;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        color: var(--text-dim);
+        font-size: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+    }
+
+    .gen-badge {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        color: var(--accent-strong);
+        font-size: 0.78rem;
+        font-weight: 700;
+        padding: 6px 14px;
+        border-radius: 20px;
+        cursor: pointer;
+    }
+
+    /* Stats */
+    .header-stats {
+        text-align: center;
+        width: 100%;
+        background: var(--card-bg);
+        padding: 12px;
+        border-radius: 14px;
+        border: 1px solid var(--border);
+    }
+
+    .strength-display {
+        font-size: 2.1rem;
+        font-weight: 800;
+        color: var(--gold);
+        text-shadow: 0 0 14px rgba(255, 210, 63, 0.25);
+        line-height: 1.15;
+    }
+
+    .rate-display {
+        font-size: 0.8rem;
+        color: var(--text-dim);
+        margin-top: 4px;
+    }
+
+    /* Character */
+    .character-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        margin: 8px 0;
+    }
+
+    .character-display {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 4.2rem;
+        gap: 14px;
+        min-height: 100px;
+    }
+
+    .character-avatar {
+        filter: drop-shadow(0 0 14px rgba(255, 159, 28, 0.18));
+    }
+
+    .equipped-item {
+        font-size: 3rem;
+        animation: bounce 1.6s infinite alternate ease-in-out;
+    }
+
+    @keyframes bounce {
+        0% { transform: translateY(0); }
+        100% { transform: translateY(-10px); }
+    }
+
+    .character-stage-name {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--violet);
+        background: var(--card-bg-soft);
+        padding: 6px 18px;
+        border-radius: 20px;
+        border: 1px solid var(--border);
+        margin-bottom: 8px;
+    }
+
+    .progress-bar-container {
+        width: 90%;
+        background: #251f1a;
+        height: 12px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        overflow: hidden;
+        position: relative;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, var(--accent), var(--accent-strong), var(--gold));
+        transition: width 0.3s ease;
+    }
+
+    .progress-label {
+        font-size: 0.68rem;
+        color: var(--text-dim);
+        margin-top: 5px;
+    }
+
+    /* Click area */
+    .click-area {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 6px 0;
+    }
+
+    .click-button {
+        width: 138px;
+        height: 138px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 30%, #2a231c, #100d0b);
+        border: 4px solid var(--accent);
+        color: var(--text);
+        font-size: 3.6rem;
+        cursor: pointer;
+        box-shadow: 0 0 22px rgba(232, 137, 12, 0.35);
+        transition: transform 0.05s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        outline: none;
+    }
+
+    .click-button:active {
+        transform: scale(0.88);
+        box-shadow: 0 0 32px rgba(232, 137, 12, 0.7);
+    }
+
+    .floating-text {
+        position: absolute;
+        font-weight: 800;
+        color: var(--gold);
+        font-size: 1.5rem;
+        pointer-events: none;
+        animation: floatUp 0.8s ease-out forwards;
+        z-index: 10;
+        white-space: nowrap;
+    }
+
+    .floating-text.crit {
+        color: var(--accent-strong);
+        font-size: 1.9rem;
+        text-shadow: 0 0 10px rgba(255, 159, 28, 0.6);
+    }
+
+    @keyframes floatUp {
+        0% { opacity: 1; transform: translateY(0) scale(1); }
+        100% { opacity: 0; transform: translateY(-80px) scale(1.2); }
+    }
+
+    /* Single primary CTA — everything else lives in modals */
+    .controls-panel {
+        width: 100%;
+    }
+
+    .btn-shop {
+        background: linear-gradient(180deg, var(--accent), #b5670a);
+        border: 1px solid var(--accent-strong);
+        color: #fff;
+        padding: 15px;
+        border-radius: 12px;
+        cursor: pointer;
+        font-size: 1.08rem;
+        font-weight: 700;
+        width: 100%;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    }
+
+    /* Toast */
+    .toast {
+        position: absolute;
+        bottom: 18px;
+        left: 50%;
+        transform: translateX(-50%) translateY(20px);
+        background: var(--card-bg-soft);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 10px 18px;
+        border-radius: 10px;
+        font-size: 0.82rem;
+        opacity: 0;
+        transition: opacity 0.25s ease, transform 0.25s ease;
+        z-index: 200;
+        pointer-events: none;
+        text-align: center;
+        max-width: 90%;
+    }
+
+    .toast.show {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    /* Modals shared */
+    .modal-sheet {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: var(--bg);
+        z-index: 100;
+        display: flex;
+        flex-direction: column;
+        transform: translateY(100%);
+        transition: transform 0.3s ease-in-out;
+    }
+
+    .modal-sheet.open {
+        transform: translateY(0);
+    }
+
+    .modal-header {
+        padding: 14px 15px;
+        background-color: var(--bg-panel);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .modal-title-group {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+    }
+
+    .modal-title {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: var(--text);
+    }
+
+    .modal-subtitle {
+        font-size: 0.72rem;
+        color: var(--text-dim);
+    }
+
+    .btn-close {
+        background: var(--danger);
+        border: none;
+        color: white;
+        padding: 7px 14px;
+        border-radius: 8px;
+        font-weight: 700;
+        cursor: pointer;
+        font-size: 0.85rem;
+    }
+
+    /* Shop list */
+    .shop-items-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+    }
+
+    .gen-section-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 4px 4px 8px;
+        margin-top: 4px;
+    }
+
+    .gen-section-title .name {
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: var(--accent-strong);
+    }
+
+    .gen-section-title .count {
+        font-size: 0.72rem;
+        color: var(--text-dim);
+    }
+
+    .gen-complete-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px 14px;
+        margin-bottom: 8px;
+        font-size: 0.8rem;
+        color: var(--text-dim);
+    }
+
+    .gen-complete-row .check {
+        color: var(--success);
+        font-weight: 700;
+    }
+
+    .gen-locked-row {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        background: var(--card-bg);
+        border: 1px dashed var(--border);
+        border-radius: 10px;
+        padding: 22px 14px;
+        margin-top: 10px;
+        text-align: center;
+    }
+
+    .gen-locked-row .lock-icon {
+        font-size: 1.8rem;
+        color: var(--violet);
+    }
+
+    .gen-locked-row .lock-title {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: var(--violet);
+    }
+
+    .gen-locked-row .lock-sub {
+        font-size: 0.72rem;
+        color: var(--text-dim);
+    }
+
+    .shop-item {
+        display: flex;
+        align-items: center;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        position: relative;
+    }
+
+    .shop-item.disabled {
+        opacity: 0.42;
+        cursor: not-allowed;
+    }
+
+    .shop-item.owned {
+        border-color: var(--success);
+        background: #16221d;
+        cursor: default;
+    }
+
+    .shop-item-icon {
+        font-size: 1.9rem;
+        margin-left: 12px;
+        width: 42px;
+        text-align: center;
+    }
+
+    .shop-item-details {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .shop-item-title {
+        font-weight: 700;
+        font-size: 0.92rem;
+        color: #f5f0e8;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .shop-item-sub {
+        font-size: 0.72rem;
+        color: var(--text-dim);
+        margin-top: 2px;
+    }
+
+    .shop-item-cost {
+        color: var(--gold);
+        font-weight: 700;
+        font-size: 0.82rem;
+        margin-top: 2px;
+    }
+
+    .shop-item-status {
+        background: #30271c;
+        padding: 5px 11px;
+        border-radius: 12px;
+        font-size: 0.72rem;
+        color: var(--accent-strong);
+        margin-right: 8px;
+        flex-shrink: 0;
+    }
+
+    .shop-item.owned .shop-item-status {
+        background: var(--success);
+        color: #08211a;
+    }
+
+    /* Settings modal */
+    .settings-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .settings-stat-card {
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 12px 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.85rem;
+    }
+
+    .settings-stat-card .label { color: var(--text-dim); }
+    .settings-stat-card .value { color: var(--text); font-weight: 700; }
+
+    .btn-setting {
+        border-radius: 10px;
+        padding: 13px;
+        font-size: 0.95rem;
+        font-weight: 700;
+        cursor: pointer;
+        border: 1px solid var(--border);
+        width: 100%;
+    }
+
+    .btn-save { background: var(--card-bg-soft); color: var(--success); }
+    .btn-reset { background: var(--card-bg-soft); color: var(--danger); }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--card-bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<div class="game-container">
+
+    <div class="top-bar">
+        <button class="icon-btn" id="open-settings-btn" aria-label="الإعدادات">⚙</button>
+        <div class="gen-badge" id="gen-badge">الجيل 1</div>
+    </div>
+
+    <div class="header-stats">
+        <div class="strength-display" id="str-display">0 قوة</div>
+        <div class="rate-display">
+            <span id="cpc-display">لكل نقرة: 1</span> · <span id="cps-display">تلقائي: 0/ث</span>
+        </div>
+    </div>
+
+    <div class="character-container">
+        <div class="character-display">
+            <span class="character-avatar" id="char-avatar">🦴</span>
+            <span class="equipped-item" id="char-item">✏️</span>
+        </div>
+        <div class="character-stage-name" id="char-stage">نحيف جداً</div>
+        <div class="progress-bar-container">
+            <div class="progress-bar-fill" id="progress-fill"></div>
+        </div>
+        <div class="progress-label" id="progress-label">0 قطعة مملوكة</div>
+    </div>
+
+    <div class="click-area">
+        <button class="click-button" id="click-btn">🏋️</button>
+    </div>
+
+    <div class="controls-panel">
+        <button class="btn-shop" id="open-shop-btn">المتجر 🛒</button>
+    </div>
+
+    <!-- Shop -->
+    <div class="modal-sheet" id="shop-modal">
+        <div class="modal-header">
+            <div class="modal-title-group">
+                <div class="modal-title">متجر المعدات</div>
+                <div class="modal-subtitle" id="shop-subtitle">الجيل 1</div>
+            </div>
+            <button class="btn-close" id="close-shop-btn">إغلاق ✖</button>
+        </div>
+        <div class="shop-items-list" id="shop-list"></div>
+    </div>
+
+    <!-- Settings -->
+    <div class="modal-sheet" id="settings-modal">
+        <div class="modal-header">
+            <div class="modal-title-group">
+                <div class="modal-title">الإعدادات والتقدم</div>
+                <div class="modal-subtitle">بياناتك محفوظة تلقائياً</div>
+            </div>
+            <button class="btn-close" id="close-settings-btn">إغلاق ✖</button>
+        </div>
+        <div class="settings-body">
+            <div class="settings-stat-card">
+                <span class="label">إجمالي القطع المملوكة</span>
+                <span class="value" id="stat-owned">0</span>
+            </div>
+            <div class="settings-stat-card">
+                <span class="label">الجيل الحالي</span>
+                <span class="value" id="stat-gen">1</span>
+            </div>
+            <div class="settings-stat-card">
+                <span class="label">فرصة الضربة الحرجة</span>
+                <span class="value">5% × 4</span>
+            </div>
+            <button class="btn-setting btn-save" id="save-btn">حفظ الآن</button>
+            <button class="btn-setting btn-reset" id="reset-btn">إعادة الضبط بالكامل</button>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+</div>
+
+<script>
+    /* ---------------------------------------------------------
+       CONFIG — tune the endless curve from one place
+    --------------------------------------------------------- */
+    const CONFIG = {
+        itemsPerGen: 30,
+        baseCostStart: 10,
+        baseCostRatio: 1.45,
+        basePowerStart: 1,
+        basePowerRatio: 1.42,
+        genCostMult: 240,   // cost multiplies by this every full generation
+        genPowerMult: 150,  // power multiplies slower -> keeps the grind endless
+        critChance: 0.05,
+        critMultiplier: 4,
+        offlineCapSeconds: 4 * 3600,
+        saveKey: "strengthJourneyEndlessV1"
+    };
+
+    // 30 item "families" replayed forever, each generation relabels &
+    // rescales them — this is what creates the "multiple versions of every
+    // part" progression the player asked for.
+    const FAMILIES = [
+        { name: "قلم حبر",       icon: "✏️", type: "click" },
+        { name: "ملعقة طعام",     icon: "🥄", type: "click" },
+        { name: "شوكة فرنسية",    icon: "🍴", type: "auto"  },
+        { name: "فرشاة أسنان",    icon: "🪥", type: "click" },
+        { name: "كتاب ضخم",      icon: "📚", type: "auto"  },
+        { name: "زجاجة ماء",      icon: "🍾", type: "click" },
+        { name: "وسادة ريش",      icon: "🪶", type: "auto"  },
+        { name: "حقيبة مدرسية",   icon: "🎒", type: "click" },
+        { name: "مظلة مطر",       icon: "☂️", type: "auto"  },
+        { name: "كرسي مكتبي",     icon: "🪑", type: "click" },
+        { name: "دمبل خفيف",      icon: "🏋️‍♂️", type: "click" },
+        { name: "طاولة طعام",     icon: "🍽️", type: "auto"  },
+        { name: "شاشة تلفاز",     icon: "📺", type: "click" },
+        { name: "إطار سيارة",     icon: "🛞", type: "auto"  },
+        { name: "دراجة هوائية",   icon: "🚲", type: "click" },
+        { name: "ثلاجة كبيرة",    icon: "🧊", type: "auto"  },
+        { name: "دراجة نارية",    icon: "🏍️", type: "click" },
+        { name: "بيانو كبير",     icon: "🎹", type: "auto"  },
+        { name: "سيارة سيدان",    icon: "🚗", type: "click" },
+        { name: "تمثال ضخم",     icon: "🗿", type: "auto"  },
+        { name: "شاحنة نقل",      icon: "🚛", type: "click" },
+        { name: "قطار الشحن",     icon: "🚆", type: "auto"  },
+        { name: "جرافة بناء",     icon: "🚜", type: "click" },
+        { name: "منزل فاخر",      icon: "🏠", type: "auto"  },
+        { name: "مروحية قتالية",  icon: "🚁", type: "click" },
+        { name: "ناطحة سحاب",     icon: "🏢", type: "auto"  },
+        { name: "برج شهير",       icon: "🗼", type: "click" },
+        { name: "هرم أثري",       icon: "🔺", type: "auto"  },
+        { name: "جبل شامخ",       icon: "⛰️", type: "click" },
+        { name: "كوكب بعيد",      icon: "🪐", type: "auto"  }
+    ];
+
+    const GEN_ADJECTIVES = ["المطوّر", "المتقدم", "الفائق", "الأسطوري", "الملحمي", "الخارق", "الإلهي", "الكوني", "اللامتناهي"];
+
+    const CHAR_STAGES = [
+        { minItems: 0,   name: "نحيف جداً",         avatar: "🦴" },
+        { minItems: 4,   name: "مبتدئ رياضي",       avatar: "🚶" },
+        { minItems: 9,   name: "ممارس لياقة",       avatar: "🏃" },
+        { minItems: 15,  name: "عضلي مبتدئ",        avatar: "🏋️" },
+        { minItems: 22,  name: "جسم متوسط",         avatar: "💪" },
+        { minItems: 30,  name: "ضخم القامة",        avatar: "🦾" },
+        { minItems: 40,  name: "عملاق الحديد",      avatar: "🦍" },
+        { minItems: 52,  name: "مصارع محترف",       avatar: "🥋" },
+        { minItems: 66,  name: "بطل خارق",          avatar: "🦸" },
+        { minItems: 82,  name: "آلة القوة",         avatar: "🤖" },
+        { minItems: 100, name: "وحش أسطوري",        avatar: "🧟" },
+        { minItems: 120, name: "تنين القوة",        avatar: "🐉" },
+        { minItems: 145, name: "عملاق نصف إلهي",    avatar: "🧞" },
+        { minItems: 175, name: "حارس الكون",        avatar: "🛡️" },
+        { minItems: 210, name: "كائن كوني",         avatar: "👽" },
+        { minItems: 250, name: "سيد المجرة",        avatar: "🌌" },
+        { minItems: 300, name: "إله القوة",         avatar: "👑" },
+        { minItems: 360, name: "كيان خارق للطبيعة", avatar: "✨" },
+        { minItems: 430, name: "حاكم الأبعاد",      avatar: "🌀" },
+        { minItems: 520, name: "قوة اللانهاية",     avatar: "♾️" }
+    ];
+
+    /* ---------------------------------------------------------
+       Derived item math — computed on demand, nothing gigantic
+       is ever pre-stored, which is what makes growth "endless".
+    --------------------------------------------------------- */
+    function getGenLabel(gen) {
+        if (gen === 0) return "";
+        const idx = (gen - 1) % GEN_ADJECTIVES.length;
+        const cycle = Math.floor((gen - 1) / GEN_ADJECTIVES.length) + 1;
+        return cycle > 1 ? `${GEN_ADJECTIVES[idx]} ${cycle}` : GEN_ADJECTIVES[idx];
+    }
+
+    function getGenTitle(gen) {
+        return `الجيل ${gen + 1}`;
+    }
+
+    function getItemStats(globalIndex) {
+        const gen = Math.floor(globalIndex / CONFIG.itemsPerGen);
+        const slot = globalIndex % CONFIG.itemsPerGen;
+        const fam = FAMILIES[slot];
+        const cost = CONFIG.baseCostStart * Math.pow(CONFIG.baseCostRatio, slot) * Math.pow(CONFIG.genCostMult, gen);
+        const power = CONFIG.basePowerStart * Math.pow(CONFIG.basePowerRatio, slot) * Math.pow(CONFIG.genPowerMult, gen);
+        const label = getGenLabel(gen);
+        return {
+            index: globalIndex,
+            gen, slot,
+            name: label ? `${fam.name} ${label}` : fam.name,
+            icon: fam.icon,
+            type: fam.type,
+            cost, power
+        };
+    }
+
+    function isGenComplete(gen) {
+        const start = gen * CONFIG.itemsPerGen;
+        for (let i = 0; i < CONFIG.itemsPerGen; i++) {
+            if (!gameState.purchased.has(start + i)) return false;
+        }
+        return true;
+    }
+
+    function getActiveGen() {
+        let g = 0;
+        while (isGenComplete(g)) g++;
+        return g;
+    }
+
+    /* ---------------------------------------------------------
+       Number formatting — named suffixes, then scientific for
+       anything beyond a decillion so the game never breaks.
+    --------------------------------------------------------- */
+    const SUFFIXES = [
+        { v: 1e33, s: "ديسيليون" },
+        { v: 1e30, s: "نونيليون" },
+        { v: 1e27, s: "أوكتيليون" },
+        { v: 1e24, s: "سبتيليون" },
+        { v: 1e21, s: "سكستيليون" },
+        { v: 1e18, s: "كوينتليون" },
+        { v: 1e15, s: "كوادريليون" },
+        { v: 1e12, s: "تريليون" },
+        { v: 1e9,  s: "مليار" },
+        { v: 1e6,  s: "مليون" },
+        { v: 1e3,  s: "ألف" }
+    ];
+
+    function formatNum(n) {
+        if (!isFinite(n)) return "∞";
+        if (n < 1000) return Math.floor(n).toLocaleString('en-US');
+        for (const { v, s } of SUFFIXES) {
+            if (n >= v) return (n / v).toFixed(2) + " " + s;
+        }
+        const exp = Math.floor(Math.log10(n));
+        const mant = n / Math.pow(10, exp);
+        return mant.toFixed(2) + "×10^" + exp;
+    }
+
+    /* ---------------------------------------------------------
+       Game state
+    --------------------------------------------------------- */
+    let gameState = {
+        strength: 0,
+        purchased: new Set(),
+        clickPower: 1,
+        autoPowerPerSec: 0,
+        lastSave: Date.now()
+    };
+
+    function recalculateStats() {
+        let cpc = 1;
+        let cps = 0;
+        gameState.purchased.forEach(idx => {
+            const item = getItemStats(idx);
+            if (item.type === "click") cpc += item.power;
+            else cps += item.power;
+        });
+        gameState.clickPower = cpc;
+        gameState.autoPowerPerSec = cps;
+    }
+
+    /* ---------------------------------------------------------
+       UI — header, character, progress
+    --------------------------------------------------------- */
+    function updateUI() {
+        document.getElementById("str-display").innerText = `${formatNum(gameState.strength)} قوة`;
+        document.getElementById("cpc-display").innerText = `لكل نقرة: ${formatNum(gameState.clickPower)}`;
+        document.getElementById("cps-display").innerText = `تلقائي: ${formatNum(gameState.autoPowerPerSec)}/ث`;
+
+        const totalOwned = gameState.purchased.size;
+        const activeGen = getActiveGen();
+
+        document.getElementById("gen-badge").innerText = `${getGenTitle(activeGen)} · ${totalOwned % CONFIG.itemsPerGen || (isGenComplete(activeGen) ? CONFIG.itemsPerGen : 0)}/${CONFIG.itemsPerGen}`;
+
+        let currentStage = CHAR_STAGES[0];
+        for (const stage of CHAR_STAGES) {
+            if (totalOwned >= stage.minItems) currentStage = stage;
+        }
+        document.getElementById("char-avatar").innerText = currentStage.avatar;
+        document.getElementById("char-stage").innerText = currentStage.name;
+
+        let highestIcon = "✏️";
+        let highestIdx = -1;
+        gameState.purchased.forEach(idx => { if (idx > highestIdx) { highestIdx = idx; highestIcon = getItemStats(idx).icon; } });
+        document.getElementById("char-item").innerText = highestIcon;
+
+        const stageIdx = CHAR_STAGES.indexOf(currentStage);
+        const nextStage = CHAR_STAGES[stageIdx + 1];
+        let progressPercent = 100;
+        let progressLabel = `${totalOwned} قطعة مملوكة · أقصى مرحلة`;
+        if (nextStage) {
+            const span = nextStage.minItems - currentStage.minItems;
+            const into = totalOwned - currentStage.minItems;
+            progressPercent = Math.min(100, (into / span) * 100);
+            progressLabel = `${totalOwned} قطعة · ${nextStage.minItems - totalOwned} حتى "${nextStage.name}"`;
+        }
+        document.getElementById("progress-fill").style.width = `${progressPercent}%`;
+        document.getElementById("progress-label").innerText = progressLabel;
+
+        document.getElementById("stat-owned").innerText = totalOwned.toLocaleString('en-US');
+        document.getElementById("stat-gen").innerText = getGenTitle(activeGen);
+    }
+
+    /* ---------------------------------------------------------
+       Shop rendering — only the active generation is fully
+       rendered; completed ones collapse to one line, the next
+       one is shown locked. Keeps the DOM small and the flow
+       logically sequential.
+    --------------------------------------------------------- */
+    function buildShopItemRow(idx) {
+        const item = getItemStats(idx);
+        const owned = gameState.purchased.has(idx);
+        const affordable = gameState.strength >= item.cost;
+
+        const row = document.createElement("div");
+        row.className = "shop-item" + (owned ? " owned" : (affordable ? "" : " disabled"));
+
+        const typeText = item.type === "click" ? "نقرة" : "تلقائي/ث";
+        row.innerHTML = `
+            <div class="shop-item-icon">${item.icon}</div>
+            <div class="shop-item-details">
+                <div class="shop-item-title">${item.name}</div>
+                <div class="shop-item-sub">+${formatNum(item.power)} قوة (${typeText})</div>
+                <div class="shop-item-cost">${owned ? "" : "السعر: " + formatNum(item.cost)}</div>
+            </div>
+            <div class="shop-item-status">${owned ? "مملوك ✓" : "شراء"}</div>
+        `;
+
+        if (!owned) {
+            const handleBuy = (e) => { e.preventDefault(); buyItem(idx); };
+            row.addEventListener("touchend", handleBuy);
+            row.addEventListener("click", (e) => { if (e.pointerType !== "touch") buyItem(idx); });
+        }
+        return row;
+    }
+
+    function renderShop() {
+        const container = document.getElementById("shop-list");
+        container.innerHTML = "";
+        const activeGen = getActiveGen();
+
+        // Completed generations — collapsed summary only (unobtrusive).
+        for (let g = 0; g < activeGen; g++) {
+            const row = document.createElement("div");
+            row.className = "gen-complete-row";
+            row.innerHTML = `<span>${getGenTitle(g)}${getGenLabel(g) ? " — " + getGenLabel(g) : ""}</span><span class="check">مكتمل ✓ ${CONFIG.itemsPerGen}/${CONFIG.itemsPerGen}</span>`;
+            container.appendChild(row);
+        }
+
+        // Active generation — fully rendered and buyable.
+        const titleRow = document.createElement("div");
+        titleRow.className = "gen-section-title";
+        const ownedInGen = Array.from(gameState.purchased).filter(i => Math.floor(i / CONFIG.itemsPerGen) === activeGen).length;
+        titleRow.innerHTML = `<span class="name">${getGenTitle(activeGen)}${getGenLabel(activeGen) ? " — " + getGenLabel(activeGen) : ""}</span><span class="count">${ownedInGen}/${CONFIG.itemsPerGen}</span>`;
+        container.appendChild(titleRow);
+
+        const start = activeGen * CONFIG.itemsPerGen;
+        for (let i = 0; i < CONFIG.itemsPerGen; i++) {
+            container.appendChild(buildShopItemRow(start + i));
+        }
+
+        // Next generation — locked preview to signal what's coming.
+        const lockedRow = document.createElement("div");
+        lockedRow.className = "gen-locked-row";
+        lockedRow.innerHTML = `
+            <div class="lock-icon">🔒</div>
+            <div class="lock-title">${getGenTitle(activeGen + 1)}${getGenLabel(activeGen + 1) ? " — " + getGenLabel(activeGen + 1) : ""}</div>
+            <div class="lock-sub">أكمل شراء جميع قطع الجيل الحالي لفتح ${CONFIG.itemsPerGen} قطعة جديدة</div>
+        `;
+        container.appendChild(lockedRow);
+
+        document.getElementById("shop-subtitle").innerText = `${getGenTitle(activeGen)} · ${ownedInGen}/${CONFIG.itemsPerGen} مملوكة`;
+    }
+
+    function buyItem(idx) {
+        if (gameState.purchased.has(idx)) return;
+        const item = getItemStats(idx);
+        if (gameState.strength < item.cost) return;
+
+        gameState.strength -= item.cost;
+        gameState.purchased.add(idx);
+
+        recalculateStats();
+        updateUI();
+        renderShop();
+        saveGame();
+    }
+
+    /* ---------------------------------------------------------
+       Clicking
+    --------------------------------------------------------- */
+    function createFloatingText(x, y, amount, isCrit) {
+        const el = document.createElement("div");
+        el.className = "floating-text" + (isCrit ? " crit" : "");
+        el.innerText = (isCrit ? "×4! +" : "+") + formatNum(amount);
+        el.style.left = `${x - 20}px`;
+        el.style.top = `${y - 30}px`;
+        document.body.appendChild(el);
+        setTimeout(() => el.remove(), 800);
+    }
+
+    function triggerClick(x, y) {
+        const isCrit = Math.random() < CONFIG.critChance;
+        const gained = gameState.clickPower * (isCrit ? CONFIG.critMultiplier : 1);
+        gameState.strength += gained;
+        createFloatingText(x, y, gained, isCrit);
+        updateUI();
+    }
+
+    const clickBtn = document.getElementById("click-btn");
+    clickBtn.addEventListener("touchstart", (e) => {
+        e.preventDefault();
+        const touch = e.touches[0];
+        triggerClick(touch.clientX, touch.clientY);
+    });
+    clickBtn.addEventListener("click", (e) => {
+        if (e.pointerType !== "touch") {
+            const rect = e.target.getBoundingClientRect();
+            triggerClick(rect.left + rect.width / 2, rect.top + rect.height / 2);
+        }
+    });
+
+    /* ---------------------------------------------------------
+       Modals
+    --------------------------------------------------------- */
+    const shopModal = document.getElementById("shop-modal");
+    document.getElementById("open-shop-btn").addEventListener("click", () => { renderShop(); shopModal.classList.add("open"); });
+    document.getElementById("gen-badge").addEventListener("click", () => { renderShop(); shopModal.classList.add("open"); });
+    document.getElementById("close-shop-btn").addEventListener("click", () => shopModal.classList.remove("open"));
+
+    const settingsModal = document.getElementById("settings-modal");
+    document.getElementById("open-settings-btn").addEventListener("click", () => { updateUI(); settingsModal.classList.add("open"); });
+    document.getElementById("close-settings-btn").addEventListener("click", () => settingsModal.classList.remove("open"));
+
+    /* ---------------------------------------------------------
+       Toast (replaces blocking alert())
+    --------------------------------------------------------- */
+    let toastTimer = null;
+    function showToast(msg) {
+        const toast = document.getElementById("toast");
+        toast.innerText = msg;
+        toast.classList.add("show");
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => toast.classList.remove("show"), 2600);
+    }
+
+    /* ---------------------------------------------------------
+       Auto income loop
+    --------------------------------------------------------- */
+    setInterval(() => {
+        if (gameState.autoPowerPerSec > 0) {
+            gameState.strength += gameState.autoPowerPerSec / 10;
+            updateUI();
+        }
+    }, 100);
+
+    /* ---------------------------------------------------------
+       Save / Load / Reset
+    --------------------------------------------------------- */
+    function saveGame() {
+        const payload = {
+            strength: gameState.strength,
+            purchased: Array.from(gameState.purchased),
+            lastSave: Date.now()
+        };
+        localStorage.setItem(CONFIG.saveKey, JSON.stringify(payload));
+    }
+
+    function loadGame() {
+        const saved = localStorage.getItem(CONFIG.saveKey);
+        if (!saved) return;
+        try {
+            const loaded = JSON.parse(saved);
+            gameState.strength = loaded.strength || 0;
+            gameState.purchased = new Set(loaded.purchased || []);
+            recalculateStats();
+
+            const elapsed = Math.min((Date.now() - (loaded.lastSave || Date.now())) / 1000, CONFIG.offlineCapSeconds);
+            if (elapsed > 5 && gameState.autoPowerPerSec > 0) {
+                const earned = gameState.autoPowerPerSec * elapsed;
+                gameState.strength += earned;
+                setTimeout(() => showToast(`بينما كنت غائباً، ربحت ${formatNum(earned)} قوة تلقائياً`), 500);
+            }
+        } catch (e) {
+            console.error("Save load error", e);
+        }
+    }
+
+    function resetGame() {
+        if (!confirm("هل تريد إعادة تشغيل اللعبة والبدء من جديد؟ سيتم فقدان كل التقدم.")) return;
+        gameState = { strength: 0, purchased: new Set(), clickPower: 1, autoPowerPerSec: 0, lastSave: Date.now() };
+        saveGame();
+        recalculateStats();
+        updateUI();
+        renderShop();
+        showToast("تم إعادة الضبط. رحلة جديدة تبدأ الآن!");
+    }
+
+    setInterval(saveGame, 10000);
+
+    document.getElementById("save-btn").addEventListener("click", () => {
+        saveGame();
+        showToast("تم حفظ التقدم بنجاح ✓");
+    });
+    document.getElementById("reset-btn").addEventListener("click", resetGame);
+
+    window.onload = () => {
+        loadGame();
+        recalculateStats();
+        updateUI();
+        renderShop();
+    };
+</script>
+
+</body>
+</html>
